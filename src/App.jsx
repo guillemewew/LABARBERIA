@@ -136,6 +136,12 @@ export default function App() {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
 
+  const [emailFormOpen, setEmailFormOpen] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
   const days = useMemo(() => generateUpcomingDays(21), []);
   const visibleDays = days.slice(dayOffset, dayOffset + 6);
 
@@ -198,6 +204,33 @@ export default function App() {
     setErrors({});
     setConfirmed(null);
     setDayOffset(0);
+    setEmailFormOpen(false);
+    setEmailInput("");
+    setEmailSending(false);
+    setEmailSent(false);
+    setEmailError("");
+  }
+
+  async function sendConfirmationEmail() {
+    if (!emailInput.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim())) {
+      setEmailError("Introduce un email válido");
+      return;
+    }
+    setEmailSending(true);
+    setEmailError("");
+    try {
+      const r = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: emailInput.trim(), booking: confirmed }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Error al enviar");
+      setEmailSent(true);
+    } catch (err) {
+      setEmailError("No se pudo enviar el email. Inténtalo de nuevo.");
+    }
+    setEmailSending(false);
   }
 
   function checkPin() {
@@ -526,14 +559,46 @@ export default function App() {
                     >
                       <MessageCircle size={15} /> WhatsApp
                     </a>
-                    <a
-                      href={buildMailtoLink(confirmed)}
-                      className="brb-btn"
-                      style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", borderRadius: 10, fontWeight: 500, fontSize: 13, border: "1px solid #4A3626", color: "#F1E6D8" }}
-                    >
-                      <Mail size={15} /> Email
-                    </a>
+                    {!emailFormOpen && !emailSent && (
+                      <button
+                        onClick={() => setEmailFormOpen(true)}
+                        className="brb-btn"
+                        style={{ flex: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", borderRadius: 10, fontWeight: 500, fontSize: 13, border: "1px solid #4A3626", color: "#F1E6D8", background: "transparent" }}
+                      >
+                        <Mail size={15} /> Email
+                      </button>
+                    )}
                   </div>
+
+                  {emailFormOpen && !emailSent && (
+                    <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: 14, marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, color: "#B99A76", marginBottom: 8 }}>Te enviamos la confirmación a tu email:</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          value={emailInput}
+                          onChange={(e) => { setEmailInput(e.target.value); if (emailError) setEmailError(""); }}
+                          onKeyDown={(e) => e.key === "Enter" && sendConfirmationEmail()}
+                          placeholder="tunombre@gmail.com"
+                          style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: `1px solid ${emailError ? "#B87A7A" : "#3A2A1C"}`, background: "#1A110B", color: "#F1E6D8", fontSize: 13 }}
+                        />
+                        <button
+                          onClick={sendConfirmationEmail}
+                          disabled={emailSending}
+                          className="brb-btn"
+                          style={{ padding: "9px 14px", borderRadius: 8, border: "none", background: "#C08552", color: "#1A110B", fontWeight: 600, fontSize: 13, cursor: emailSending ? "default" : "pointer", opacity: emailSending ? 0.7 : 1 }}
+                        >
+                          {emailSending ? "..." : "Enviar"}
+                        </button>
+                      </div>
+                      {emailError && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 6 }}>{emailError}</div>}
+                    </div>
+                  )}
+
+                  {emailSent && (
+                    <div style={{ background: "#16281C", border: "1px solid #2D4A34", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 13, color: "#A8D9B4", display: "flex", alignItems: "center", gap: 8 }}>
+                      <Check size={15} /> Email enviado a {emailInput.trim()}
+                    </div>
+                  )}
 
                   <button
                     className="brb-btn"
