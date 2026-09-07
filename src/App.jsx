@@ -30,6 +30,9 @@ const SALON_PHONE_LABEL = "972 97 05 37"; // el mismo teléfono, formateado para
 const SALON_ADDRESS = "C/ Capellans, 22, 17400 Breda (Girona)";
 const SALON_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("La Barbería, " + SALON_ADDRESS)}`;
 
+// EDITAR: sustituye por la política real del negocio en cuanto el dueño te la confirme
+const CANCELLATION_POLICY = "Puedes cancelar o cambiar tu cita gratis hasta 2 horas antes, desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.";
+
 // Horario real: martes a viernes en dos turnos, sábado en turno único, domingo y lunes cerrado
 function getDayRanges(dow) {
   if ([2, 3, 4, 5].includes(dow)) return [{ start: 9 * 60, end: 13 * 60 }, { start: 15 * 60, end: 20 * 60 }];
@@ -93,6 +96,45 @@ function buildMailtoLink(b) {
   const subject = encodeURIComponent(`Confirmación de cita - ${b.service_name}`);
   const body = encodeURIComponent(buildConfirmationMessage(b));
   return `mailto:${SALON_EMAIL}?subject=${subject}&body=${body}`;
+}
+
+function icsTimestamp(d) {
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+function buildICS(b) {
+  const [y, m, d] = b.date.split("-").map(Number);
+  const start = new Date(y, m - 1, d, Math.floor(b.start_minutes / 60), b.start_minutes % 60);
+  const end = new Date(start.getTime() + b.duration * 60000);
+  const escapeText = (t) => String(t).replace(/[\\,;]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//La Barberia//Reservas//ES",
+    "BEGIN:VEVENT",
+    `UID:${b.id}@labarberia`,
+    `DTSTAMP:${icsTimestamp(new Date())}`,
+    `DTSTART:${icsTimestamp(start)}`,
+    `DTEND:${icsTimestamp(end)}`,
+    `SUMMARY:${escapeText(`Cita en La Barbería — ${b.service_name}`)}`,
+    `DESCRIPTION:${escapeText(`Código de cancelación: ${b.cancel_code}\\nGestiona tu cita en labarberia-three.vercel.app`)}`,
+    "LOCATION:La Barbería",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+function downloadICS(b) {
+  const blob = new Blob([buildICS(b)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "cita-la-barberia.ics";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function useBookings() {
@@ -159,7 +201,9 @@ export default function App() {
   const [dayOffset, setDayOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [autoEmailStatus, setAutoEmailStatus] = useState(null); // null | 'sending' | 'sent' | 'error'
   const [errors, setErrors] = useState({});
   const [confirmed, setConfirmed] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -210,6 +254,7 @@ export default function App() {
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [showPolicy, setShowPolicy] = useState(false);
 
   const [managePhone, setManagePhone] = useState("");
   const [manageCode, setManageCode] = useState("");
@@ -252,28 +297,27 @@ export default function App() {
     const errs = {};
     if (!form.name.trim()) errs.name = "Introduce tu nombre";
     if (!form.phone.trim() || form.phone.trim().length < 9) errs.phone = "Introduce un teléfono válido";
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errs.email = "Ese email no parece válido";
+    if (!consentChecked) errs.consent = "Tienes que aceptar el tratamiento de datos para reservar";
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
     setSubmitting(true);
-    let saved = null;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const booking = {
-        date: dateKey(selectedDate),
-        date_label: formatDateLong(selectedDate),
-        start_minutes: selectedTime,
-        time_label: minutesToLabel(selectedTime),
-        duration: service.duration,
-        service_id: service.id,
-        service_name: service.name,
-        price: service.price,
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        cancel_code: generateCancelCode(),
-      };
-      saved = await addBooking(booking);
-      if (!saved.error || saved.error.code !== "23505") break; // 23505 = código repetido, muy raro; reintenta con uno nuevo
-    }
+    const booking = {
+      date: dateKey(selectedDate),
+      date_label: formatDateLong(selectedDate),
+      start_minutes: selectedTime,
+      time_label: minutesToLabel(selectedTime),
+      duration: service.duration,
+      service_id: service.id,
+      service_name: service.name,
+      price: service.price,
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim() || null,
+      consent: true,
+    };
+    const saved = await addBooking(booking);
     setSubmitting(false);
     if (saved.error) {
       const isConflict = saved.error.code === "23P01" || /exclu/i.test(saved.error.message || "");
@@ -289,6 +333,19 @@ export default function App() {
     if (saved.booking) {
       setConfirmed(saved.booking);
       setStep(4);
+      if (saved.booking.email) {
+        setAutoEmailStatus("sending");
+        try {
+          const r = await fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to: saved.booking.email, booking: saved.booking }),
+          });
+          setAutoEmailStatus(r.ok ? "sent" : "error");
+        } catch {
+          setAutoEmailStatus("error");
+        }
+      }
     }
   }
 
@@ -297,7 +354,9 @@ export default function App() {
     setService(null);
     setSelectedDate(null);
     setSelectedTime(null);
-    setForm({ name: "", phone: "" });
+    setForm({ name: "", phone: "", email: "" });
+    setConsentChecked(false);
+    setAutoEmailStatus(null);
     setErrors({});
     setConfirmed(null);
     setDayOffset(0);
@@ -571,7 +630,7 @@ export default function App() {
                             <div className="brb-mono" style={{ fontSize: 13, color: "#C08552", minWidth: 44 }}>{b.time_label}</div>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 500 }}>{b.name} — {b.service_name}</div>
-                              <div style={{ fontSize: 11, color: "#B99A76" }}>{b.phone} · {b.duration} min · {b.price}€</div>
+                              <div style={{ fontSize: 11, color: "#B99A76" }}>{b.phone}{b.email ? ` · ${b.email}` : ""} · {b.duration} min · {b.price}€</div>
                             </div>
                           </div>
                           <button
@@ -885,7 +944,8 @@ export default function App() {
                     />
                     {errors.name && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 4 }}>{errors.name}</div>}
                   </div>
-                  <div style={{ marginBottom: 20 }}>
+
+                  <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>Teléfono</label>
                     <input
                       value={form.phone}
@@ -895,6 +955,31 @@ export default function App() {
                     />
                     {errors.phone && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 4 }}>{errors.phone}</div>}
                   </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>Email (opcional — recibirás la confirmación y el código de cancelación automáticamente)</label>
+                    <input
+                      value={form.email}
+                      onChange={(e) => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors({ ...errors, email: null }); }}
+                      placeholder="tunombre@email.com"
+                      type="email"
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${errors.email ? "#B87A7A" : "#3A2A1C"}`, background: "#120C07", color: "#F1E6D8", fontSize: 14 }}
+                    />
+                    {errors.email && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 4 }}>{errors.email}</div>}
+                  </div>
+
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 20, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={consentChecked}
+                      onChange={(e) => { setConsentChecked(e.target.checked); if (errors.consent) setErrors({ ...errors, consent: null }); }}
+                      style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: "#C08552" }}
+                    />
+                    <span style={{ fontSize: 11, color: "#B99A76", lineHeight: 1.4 }}>
+                      Acepto que La Barbería trate mis datos (nombre, teléfono{form.email.trim() ? " y email" : ""}) únicamente para gestionar mi cita, según la normativa de protección de datos.
+                    </span>
+                  </label>
+                  {errors.consent && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: -14, marginBottom: 14 }}>{errors.consent}</div>}
 
                   {errors.general && (
                     <div style={{ background: "#3A1E1E", border: "1px solid #6B3232", color: "#E8B4B4", fontSize: 12, borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
@@ -952,7 +1037,7 @@ export default function App() {
                     >
                       <MessageCircle size={15} /> WhatsApp
                     </a>
-                    {!emailFormOpen && !emailSent && (
+                    {!confirmed.email && !emailFormOpen && !emailSent && (
                       <button
                         onClick={() => setEmailFormOpen(true)}
                         className="brb-btn"
@@ -963,7 +1048,21 @@ export default function App() {
                     )}
                   </div>
 
-                  {emailFormOpen && !emailSent && (
+                  {confirmed.email && (
+                    <div style={{
+                      background: autoEmailStatus === "error" ? "#3A1E1E" : "#16281C",
+                      border: `1px solid ${autoEmailStatus === "error" ? "#6B3232" : "#2D4A34"}`,
+                      borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 13,
+                      color: autoEmailStatus === "error" ? "#E8B4B4" : "#A8D9B4",
+                      display: "flex", alignItems: "center", gap: 8
+                    }}>
+                      {autoEmailStatus === "sending" && <>Enviando confirmación a {confirmed.email}…</>}
+                      {autoEmailStatus === "sent" && <><Check size={15} /> Confirmación enviada a {confirmed.email}</>}
+                      {autoEmailStatus === "error" && <>No se pudo enviar el email automáticamente. Guarda igualmente tu código de cancelación de arriba.</>}
+                    </div>
+                  )}
+
+                  {!confirmed.email && emailFormOpen && !emailSent && (
                     <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: 14, marginBottom: 10 }}>
                       <div style={{ fontSize: 12, color: "#B99A76", marginBottom: 8 }}>Te enviamos la confirmación a tu email:</div>
                       <div style={{ display: "flex", gap: 8 }}>
@@ -987,11 +1086,19 @@ export default function App() {
                     </div>
                   )}
 
-                  {emailSent && (
+                  {!confirmed.email && emailSent && (
                     <div style={{ background: "#16281C", border: "1px solid #2D4A34", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 13, color: "#A8D9B4", display: "flex", alignItems: "center", gap: 8 }}>
                       <Check size={15} /> Email enviado a {emailInput.trim()}
                     </div>
                   )}
+
+                  <button
+                    className="brb-btn"
+                    onClick={() => downloadICS(confirmed)}
+                    style={{ width: "100%", padding: "11px", borderRadius: 10, border: "1px solid #4A3626", fontWeight: 500, fontSize: 13, cursor: "pointer", background: "transparent", color: "#D8B98C", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10 }}
+                  >
+                    📅 Añadir a mi calendario
+                  </button>
 
                   <button
                     className="brb-btn"
@@ -1015,9 +1122,22 @@ export default function App() {
               <Phone size={14} /> {SALON_PHONE_LABEL}
             </a>
           </div>
-          <a href={SALON_INSTAGRAM} target="_blank" rel="noopener noreferrer" style={{ color: "#B99A76", display: "flex", alignItems: "center", gap: 6, fontSize: 12, textDecoration: "none" }}>
-            <Instagram size={14} /> @labarberia.breda
-          </a>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+            <a href={SALON_INSTAGRAM} target="_blank" rel="noopener noreferrer" style={{ color: "#B99A76", display: "flex", alignItems: "center", gap: 6, fontSize: 12, textDecoration: "none" }}>
+              <Instagram size={14} /> @labarberia.breda
+            </a>
+            <button
+              onClick={() => setShowPolicy(!showPolicy)}
+              style={{ background: "none", border: "none", color: "#B99A76", fontSize: 12, textDecoration: "underline", cursor: "pointer", padding: 0 }}
+            >
+              Política de cancelación
+            </button>
+          </div>
+          {showPolicy && (
+            <div style={{ fontSize: 12, color: "#8A7358", lineHeight: 1.5, textAlign: "center", maxWidth: 360 }}>
+              {CANCELLATION_POLICY}
+            </div>
+          )}
         </div>
       </div>
 
