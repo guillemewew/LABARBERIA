@@ -41,8 +41,8 @@ const SALON_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encode
 
 // EDITAR: sustituye por la política real del negocio en cuanto el dueño te la confirme
 const CANCELLATION_POLICY = {
-  es: "Puedes cancelar o cambiar tu cita gratis hasta 2 horas antes, desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.",
-  ca: "Pots cancel·lar o canviar la teva cita gratis fins a 2 hores abans, des de la secció \"La meva reserva\" amb el teu telèfon i el teu codi de cancel·lació. Si no pots venir, avisa'ns amb temps — així podem oferir aquesta hora a un altre client.",
+  es: "Puedes cancelar o cambiar tu cita desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.",
+  ca: "Pots cancel·lar o canviar la teva cita des de la secció \"La meva reserva\" amb el teu telèfon i el teu codi de cancel·lació. Si no pots venir, avisa'ns amb temps — així podem oferir aquesta hora a un altre client.",
 };
 
 // --- Traducciones de la interfaz ---
