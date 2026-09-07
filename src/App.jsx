@@ -755,23 +755,6 @@ export default function App() {
 
               {step === 1 && (
                 <div>
-                  <div style={{ display: "flex", flexWrap: "wrap", columnGap: 18, rowGap: 8, marginBottom: 22 }}>
-                    <a
-                      href={SALON_MAPS_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: "flex", alignItems: "center", gap: 6, color: "#D8B98C", fontSize: 12, textDecoration: "none" }}
-                    >
-                      <MapPin size={14} color="#C08552" style={{ flexShrink: 0 }} /> {SALON_ADDRESS}
-                    </a>
-                    <a
-                      href={`tel:+34${SALON_PHONE}`}
-                      style={{ display: "flex", alignItems: "center", gap: 6, color: "#D8B98C", fontSize: 12, textDecoration: "none" }}
-                    >
-                      <Phone size={14} color="#C08552" style={{ flexShrink: 0 }} /> {SALON_PHONE_LABEL}
-                    </a>
-                  </div>
-
                   <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Elige un servicio</div>
                   <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>
                     Martes a viernes 9:00–13:00 y 15:00–20:00 · Sábado 8:00–14:00
