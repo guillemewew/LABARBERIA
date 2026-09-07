@@ -291,6 +291,33 @@ export default function App() {
     return map;
   }, [sortedBookings]);
 
+  const stats = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const weekStart = new Date(now);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(now.getDate() + diffToMonday);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    const weekBookings = bookings.filter((b) => {
+      const bd = new Date(b.date + "T00:00:00");
+      return bd >= weekStart && bd < weekEnd;
+    });
+
+    const weekCount = weekBookings.length;
+    const weekRevenue = weekBookings.reduce((sum, b) => sum + Number(b.price || 0), 0);
+
+    const counts = {};
+    bookings.forEach((b) => { counts[b.service_name] = (counts[b.service_name] || 0) + 1; });
+    let popular = "—";
+    let max = 0;
+    Object.entries(counts).forEach(([name, c]) => { if (c > max) { max = c; popular = name; } });
+
+    return { weekCount, weekRevenue, popular };
+  }, [bookings]);
+
   return (
     <div style={{ fontFamily: "'Inter', sans-serif", background: "#1A110B", minHeight: "100vh", color: "#F1E6D8" }}>
       <style>{`
@@ -365,9 +392,25 @@ export default function App() {
             ) : (
               <div>
                 <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Reservas</div>
-                <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>
                   {sortedBookings.length === 0 ? "Todavía no hay reservas." : `${sortedBookings.length} reserva${sortedBookings.length !== 1 ? "s" : ""} en total`}
                 </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 22 }}>
+                  <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 10px" }}>
+                    <div className="brb-mono" style={{ fontSize: 20, fontWeight: 600, color: "#C08552" }}>{stats.weekCount}</div>
+                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 2 }}>Reservas esta semana</div>
+                  </div>
+                  <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 10px" }}>
+                    <div className="brb-mono" style={{ fontSize: 20, fontWeight: 600, color: "#C08552" }}>{stats.weekRevenue}€</div>
+                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 2 }}>Ingresos esta semana</div>
+                  </div>
+                  <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 10px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#C08552", lineHeight: 1.3 }}>{stats.popular}</div>
+                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 4 }}>Servicio más popular</div>
+                  </div>
+                </div>
+
                 {Object.keys(grouped).length === 0 && (
                   <div style={{ padding: "40px 0", textAlign: "center", color: "#6E5A44" }}>
                     <CalendarCheck2 size={28} style={{ margin: "0 auto 10px" }} />
