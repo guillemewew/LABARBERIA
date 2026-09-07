@@ -31,7 +31,7 @@ const SALON_ADDRESS = "C/ Capellans, 22, 17400 Breda (Girona)";
 const SALON_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("La Barbería, " + SALON_ADDRESS)}`;
 
 // EDITAR: sustituye por la política real del negocio en cuanto el dueño te la confirme
-const CANCELLATION_POLICY = "Puedes cancelar o cambiar tu cita gratis hasta 2 horas antes, desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.";
+const CANCELLATION_POLICY = "Puedes cancelar o cambiar tu cita desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.";
 
 // Horario real: martes a viernes en dos turnos, sábado en turno único, domingo y lunes cerrado
 function getDayRanges(dow) {
