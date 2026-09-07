@@ -136,11 +136,18 @@ function useBookings() {
     await load();
   }, [load]);
 
-  return { bookings, loaded, error, addBooking, removeBooking, reload: load };
+  const updateBooking = useCallback(async (id, updates) => {
+    const { data, error: err } = await supabase.from("bookings").update(updates).eq("id", id).select();
+    if (err) return { booking: null, error: err };
+    await load();
+    return { booking: data ? data[0] : null, error: null };
+  }, [load]);
+
+  return { bookings, loaded, error, addBooking, removeBooking, updateBooking, reload: load };
 }
 
 export default function App() {
-  const { bookings, loaded, error, addBooking, removeBooking } = useBookings();
+  const { bookings, loaded, error, addBooking, removeBooking, updateBooking } = useBookings();
   const [view, setView] = useState("client");
   const [step, setStep] = useState(1);
   const [service, setService] = useState(null);
@@ -203,6 +210,13 @@ export default function App() {
   const [manageCode, setManageCode] = useState("");
   const [manageSearched, setManageSearched] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+
+  const [editingBooking, setEditingBooking] = useState(null);
+  const [editDayOffset, setEditDayOffset] = useState(0);
+  const [editDate, setEditDate] = useState(null);
+  const [editTime, setEditTime] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const days = useMemo(() => generateUpcomingDays(21), []);
   const visibleDays = days.slice(dayOffset, dayOffset + 6);
@@ -334,6 +348,42 @@ export default function App() {
     setCancellingId(id);
     await removeBooking(id);
     setCancellingId(null);
+  }
+
+  function startEditingBooking(b) {
+    setEditingBooking(b);
+    setEditDate(null);
+    setEditTime(null);
+    setEditDayOffset(0);
+    setEditError("");
+  }
+
+  const editSlots = useMemo(() => {
+    if (!editingBooking || !editDate) return [];
+    const serviceStub = { duration: editingBooking.duration };
+    const otherBookings = bookings.filter((b) => b.id !== editingBooking.id);
+    return generateSlots(serviceStub, editDate, otherBookings);
+  }, [editingBooking, editDate, bookings]);
+
+  async function saveEditedBooking() {
+    if (!editingBooking || editTime === null) return;
+    setEditSaving(true);
+    setEditError("");
+    const result = await updateBooking(editingBooking.id, {
+      date: dateKey(editDate),
+      date_label: formatDateLong(editDate),
+      start_minutes: editTime,
+      time_label: minutesToLabel(editTime),
+    });
+    setEditSaving(false);
+    if (result.error) {
+      const isConflict = result.error.code === "23P01" || /exclu/i.test(result.error.message || "");
+      setEditError(isConflict ? "Esa hora se acaba de ocupar. Elige otra." : "No se pudo guardar el cambio. Inténtalo de nuevo.");
+      return;
+    }
+    setEditingBooking(null);
+    setEditDate(null);
+    setEditTime(null);
   }
 
   const sortedBookings = useMemo(() => {
@@ -584,14 +634,104 @@ export default function App() {
                           </div>
                           <div className="brb-mono" style={{ fontSize: 13, color: "#C08552" }}>{b.price}€</div>
                         </div>
-                        <button
-                          className="brb-btn"
-                          onClick={() => cancelMyBooking(b.id)}
-                          disabled={cancellingId === b.id}
-                          style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #6B3232", background: "transparent", color: "#E29A9A", fontSize: 12, fontWeight: 500, cursor: cancellingId === b.id ? "default" : "pointer", opacity: cancellingId === b.id ? 0.6 : 1 }}
-                        >
-                          {cancellingId === b.id ? "Cancelando…" : "Cancelar esta cita"}
-                        </button>
+
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            className="brb-btn"
+                            onClick={() => (editingBooking?.id === b.id ? setEditingBooking(null) : startEditingBooking(b))}
+                            style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #4A3626", background: "transparent", color: "#D8B98C", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                          >
+                            {editingBooking?.id === b.id ? "Cerrar" : "Cambiar hora"}
+                          </button>
+                          <button
+                            className="brb-btn"
+                            onClick={() => cancelMyBooking(b.id)}
+                            disabled={cancellingId === b.id}
+                            style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #6B3232", background: "transparent", color: "#E29A9A", fontSize: 12, fontWeight: 500, cursor: cancellingId === b.id ? "default" : "pointer", opacity: cancellingId === b.id ? 0.6 : 1 }}
+                          >
+                            {cancellingId === b.id ? "Cancelando…" : "Cancelar esta cita"}
+                          </button>
+                        </div>
+
+                        {editingBooking?.id === b.id && (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed #3A2A1C" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                              <button className="brb-btn" onClick={() => setEditDayOffset(Math.max(0, editDayOffset - 6))} disabled={editDayOffset === 0}
+                                style={{ background: "#1A110B", border: "1px solid #3A2A1C", borderRadius: 8, padding: 6, cursor: editDayOffset === 0 ? "default" : "pointer", opacity: editDayOffset === 0 ? 0.4 : 1, color: "#F1E6D8" }}>
+                                <ChevronLeft size={13} />
+                              </button>
+                              <div className="brb-scroll" style={{ display: "flex", gap: 6, overflowX: "auto", flex: 1 }}>
+                                {days.slice(editDayOffset, editDayOffset + 6).map((d) => {
+                                  const closed = getDayRanges(d.getDay()).length === 0;
+                                  const isSelected = editDate && dateKey(d) === dateKey(editDate);
+                                  return (
+                                    <button
+                                      key={dateKey(d)}
+                                      className="brb-btn"
+                                      disabled={closed}
+                                      onClick={() => { setEditDate(d); setEditTime(null); }}
+                                      style={{
+                                        minWidth: 50, padding: "8px 4px", borderRadius: 8, textAlign: "center", cursor: closed ? "default" : "pointer",
+                                        background: isSelected ? "#C08552" : "#1A110B",
+                                        border: `1px solid ${isSelected ? "#C08552" : "#3A2A1C"}`,
+                                        color: closed ? "#5A4A38" : isSelected ? "#1A110B" : "#F1E6D8",
+                                        opacity: closed ? 0.5 : 1,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      <div style={{ fontSize: 10, textTransform: "uppercase" }}>{DAY_NAMES[d.getDay()]}</div>
+                                      <div className="brb-mono" style={{ fontSize: 13, fontWeight: 600 }}>{d.getDate()}</div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button className="brb-btn" onClick={() => setEditDayOffset(Math.min(days.length - 6, editDayOffset + 6))} disabled={editDayOffset + 6 >= days.length}
+                                style={{ background: "#1A110B", border: "1px solid #3A2A1C", borderRadius: 8, padding: 6, cursor: "pointer", color: "#F1E6D8" }}>
+                                <ChevronRight size={13} />
+                              </button>
+                            </div>
+
+                            {editDate && (
+                              editSlots.length === 0 ? (
+                                <div style={{ fontSize: 12, color: "#6E5A44", padding: "8px 0" }}>No quedan horas libres ese día.</div>
+                              ) : (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))", gap: 6, marginBottom: 10 }}>
+                                  {editSlots.map((t) => (
+                                    <button
+                                      key={t}
+                                      className="brb-btn brb-mono"
+                                      onClick={() => setEditTime(t)}
+                                      style={{
+                                        padding: "6px 4px", borderRadius: 8, fontSize: 12, cursor: "pointer",
+                                        background: editTime === t ? "#C08552" : "#1A110B",
+                                        border: `1px solid ${editTime === t ? "#C08552" : "#3A2A1C"}`,
+                                        color: editTime === t ? "#1A110B" : "#F1E6D8",
+                                      }}
+                                    >
+                                      {minutesToLabel(t)}
+                                    </button>
+                                  ))}
+                                </div>
+                              )
+                            )}
+
+                            {editError && <div style={{ color: "#E29A9A", fontSize: 12, marginBottom: 8 }}>{editError}</div>}
+
+                            <button
+                              className="brb-btn"
+                              onClick={saveEditedBooking}
+                              disabled={editTime === null || editSaving}
+                              style={{
+                                width: "100%", padding: "9px", borderRadius: 8, border: "none", fontWeight: 600, fontSize: 12,
+                                cursor: editTime === null || editSaving ? "default" : "pointer",
+                                background: editTime === null ? "#3A2A1C" : "#C08552",
+                                color: editTime === null ? "#6E5A44" : "#1A110B",
+                              }}
+                            >
+                              {editSaving ? "Guardando…" : "Guardar nueva hora"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
