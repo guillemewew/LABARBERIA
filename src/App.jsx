@@ -443,30 +443,30 @@ export default function App() {
 
       <div className="brb-shell">
         {/* Header */}
-        <div style={{ background: "#120C07", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #3A2A1C" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/logo.png" alt="La Barbería" style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", background: "#F1E6D8" }} />
-            <div>
-              <div className="brb-serif" style={{ fontSize: 19, fontWeight: 600, lineHeight: 1, letterSpacing: "0.02em" }}>LA BARBERÍA</div>
-              <div className="brb-mono" style={{ fontSize: 9, color: "#B99A76", letterSpacing: "0.08em", marginTop: 3 }}>NEW OLD SCHOOL · SINCE 2024</div>
+        <div style={{ background: "#120C07", padding: "16px 20px", borderBottom: "1px solid #3A2A1C" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <img src="/logo.png" alt="La Barbería" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", background: "#F1E6D8", flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div className="brb-serif" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15, letterSpacing: "0.02em" }}>LA BARBERÍA</div>
+              <div className="brb-mono" style={{ fontSize: 9, color: "#B99A76", letterSpacing: "0.06em", marginTop: 3 }}>NEW OLD SCHOOL · SINCE 2024</div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             {view === "client" && (
               <button
                 className="brb-btn"
                 onClick={() => { setView("manage"); setManagePhone(""); setManageCode(""); setManageSearched(false); }}
-                style={{ background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "7px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}
+                style={{ flex: 1, background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "8px 10px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, cursor: "pointer", whiteSpace: "nowrap" }}
               >
-                <CalendarX2 size={12} /> Mi reserva
+                <CalendarX2 size={13} /> Mi reserva
               </button>
             )}
             <button
               className="brb-btn"
               onClick={() => setView(view === "client" ? "admin" : "client")}
-              style={{ background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "7px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}
+              style={{ flex: 1, background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "8px 10px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, cursor: "pointer", whiteSpace: "nowrap" }}
             >
-              {view === "client" ? <><Lock size={12} /> Panel</> : <><ArrowLeft size={12} /> Reservar</>}
+              {view === "client" ? <><Lock size={13} /> Panel</> : <><ArrowLeft size={13} /> Reservar</>}
             </button>
           </div>
         </div>
