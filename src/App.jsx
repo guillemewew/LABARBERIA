@@ -121,9 +121,6 @@ const STR = {
   errEmailForm: { es: "Introduce un email válido", ca: "Introdueix un email vàlid" },
   errEmailSend: { es: "No se pudo enviar el email. Inténtalo de nuevo.", ca: "No s'ha pogut enviar l'email. Torna-ho a provar." },
   emailAutoError: { es: "No se pudo enviar el email automáticamente. Guarda igualmente tu código de cancelación de arriba.", ca: "No s'ha pogut enviar l'email automàticament. Guarda igualment el teu codi de cancel·lació de dalt." },
-  addToCalendar: { es: "Añadir a mi calendario", ca: "Afegir al meu calendari" },
-  googleCalendar: { es: "Google Calendar", ca: "Google Calendar" },
-  appleOutlookCalendar: { es: "Apple / Outlook", ca: "Apple / Outlook" },
   newBooking: { es: "Hacer otra reserva", ca: "Fer una altra reserva" },
   cancellationPolicyLink: { es: "Política de cancelación", ca: "Política de cancel·lació" },
   deleteBookingAria: { es: "Eliminar reserva", ca: "Eliminar reserva" },
@@ -192,58 +189,6 @@ function buildMailtoLink(b) {
   const subject = encodeURIComponent(`Confirmación de cita - ${b.service_name}`);
   const body = encodeURIComponent(buildConfirmationMessage(b));
   return `mailto:${SALON_EMAIL}?subject=${subject}&body=${body}`;
-}
-
-function icsTimestamp(d) {
-  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-}
-
-function buildICS(b) {
-  const [y, m, d] = b.date.split("-").map(Number);
-  const start = new Date(y, m - 1, d, Math.floor(b.start_minutes / 60), b.start_minutes % 60);
-  const end = new Date(start.getTime() + b.duration * 60000);
-  const escapeText = (t) => String(t).replace(/[\\,;]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
-
-  return [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//La Barberia//Reservas//ES",
-    "BEGIN:VEVENT",
-    `UID:${b.id}@labarberia`,
-    `DTSTAMP:${icsTimestamp(new Date())}`,
-    `DTSTART:${icsTimestamp(start)}`,
-    `DTEND:${icsTimestamp(end)}`,
-    `SUMMARY:${escapeText(`Cita en La Barbería — ${b.service_name}`)}`,
-    `DESCRIPTION:${escapeText(`Código de cancelación: ${b.cancel_code}\\nGestiona tu cita en labarberia-three.vercel.app`)}`,
-    "LOCATION:La Barbería",
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n");
-}
-
-function buildGoogleCalendarLink(b) {
-  const [y, m, d] = b.date.split("-").map(Number);
-  const start = new Date(y, m - 1, d, Math.floor(b.start_minutes / 60), b.start_minutes % 60);
-  const end = new Date(start.getTime() + b.duration * 60000);
-  const fmt = (dt) => dt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const dates = `${fmt(start)}/${fmt(end)}`;
-  const text = encodeURIComponent(`Cita en La Barbería — ${b.service_name}`);
-  const details = encodeURIComponent(`Código de cancelación: ${b.cancel_code}\nGestiona tu cita en labarberia-three.vercel.app`);
-  const location = encodeURIComponent("La Barbería, " + SALON_ADDRESS);
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}`;
-}
-
-function openICS(b) {
-  const blob = new Blob([buildICS(b)], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
 
 function useBookings() {
@@ -1240,28 +1185,6 @@ export default function App() {
                       <Check size={15} /> {lang === "ca" ? `Email enviat a ${emailInput.trim()}` : `Email enviado a ${emailInput.trim()}`}
                     </div>
                   )}
-
-                  <div style={{ fontSize: 11, color: "#6E5A44", textAlign: "center", marginBottom: 6 }}>
-                    {t("addToCalendar")}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    <a
-                      href={buildGoogleCalendarLink(confirmed)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="brb-btn"
-                      style={{ flex: 1, textDecoration: "none", padding: "10px", borderRadius: 10, border: "1px solid #4A3626", fontWeight: 500, fontSize: 12, cursor: "pointer", background: "transparent", color: "#D8B98C", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-                    >
-                      📅 {t("googleCalendar")}
-                    </a>
-                    <button
-                      className="brb-btn"
-                      onClick={() => openICS(confirmed)}
-                      style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid #4A3626", fontWeight: 500, fontSize: 12, cursor: "pointer", background: "transparent", color: "#D8B98C", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-                    >
-                      🍎 {t("appleOutlookCalendar")}
-                    </button>
-                  </div>
 
                   <button
                     className="brb-btn"
