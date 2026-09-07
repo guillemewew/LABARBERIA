@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Scissors, Clock, Check, ChevronLeft, ChevronRight,
-  Lock, Trash2, ArrowLeft, CalendarCheck2, MessageCircle, Mail, Instagram, Loader2, CalendarX2, Search
+  Lock, Trash2, ArrowLeft, CalendarCheck2, MessageCircle, Mail, Instagram, Loader2, CalendarX2, Search, LogOut
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -18,7 +18,7 @@ const DAY_NAMES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const DAY_NAMES_FULL = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const MONTH_NAMES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "0000";
+// (El PIN ya no se usa — el panel ahora requiere iniciar sesión de verdad con Supabase Auth)
 
 // --- Datos de contacto del negocio ---
 const SALON_WHATSAPP = "34600000000"; // formato internacional, sin '+' ni espacios — CAMBIA ESTO
@@ -69,8 +69,24 @@ function generateSlots(service, dateObj, existingBookings) {
   return raw.filter((s) => isFree(s) && (!isToday || s > nowMinutes + 30));
 }
 
+function generateCancelCode() {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sin 0/O, 1/I/L, para evitar confusiones
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
+
+function generateCancelCode() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sin O/0, I/1/L para evitar confusiones
+  let code = "";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 function buildConfirmationMessage(b) {
-  return `Hola! Confirmo mi cita en La Barbería:\n· Servicio: ${b.service_name}\n· Fecha: ${b.date_label}\n· Hora: ${b.time_label}\n· Nombre: ${b.name}\n· Teléfono: ${b.phone}`;
+  return `Hola! Confirmo mi cita en La Barbería:\n· Servicio: ${b.service_name}\n· Fecha: ${b.date_label}\n· Hora: ${b.time_label}\n· Nombre: ${b.name}\n· Teléfono: ${b.phone}\n· Código de cancelación: ${b.cancel_code}`;
 }
 function buildWhatsAppLink(b) {
   return `https://wa.me/${SALON_WHATSAPP}?text=${encodeURIComponent(buildConfirmationMessage(b))}`;
@@ -104,10 +120,21 @@ function useBookings() {
   useEffect(() => { load(); }, [load]);
 
   const addBooking = useCallback(async (booking) => {
-    const { data, error: err } = await supabase.from("bookings").insert([booking]).select();
-    if (err) return { booking: null, error: err };
-    await load();
-    return { booking: data ? data[0] : null, error: null };
+    let attempt = 0;
+    let lastError = null;
+    while (attempt < 3) {
+      const withCode = { ...booking, cancel_code: generateCancelCode() };
+      const { data, error: err } = await supabase.from("bookings").insert([withCode]).select();
+      if (!err) {
+        await load();
+        return { booking: data ? data[0] : null, error: null };
+      }
+      lastError = err;
+      const isCodeCollision = err.code === "23505" && /cancel_code/i.test(err.message || "");
+      if (!isCodeCollision) break;
+      attempt++;
+    }
+    return { booking: null, error: lastError };
   }, [load]);
 
   const removeBooking = useCallback(async (id) => {
@@ -132,9 +159,46 @@ export default function App() {
   const [confirmed, setConfirmed] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [pinInput, setPinInput] = useState("");
-  const [pinError, setPinError] = useState("");
+  const [session, setSession] = useState(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionChecked(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function signIn() {
+    setLoginError("");
+    if (!loginEmail.trim() || !loginPassword) {
+      setLoginError("Introduce el email y la contraseña");
+      return;
+    }
+    setLoginLoading(true);
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: loginEmail.trim(),
+      password: loginPassword,
+    });
+    setLoginLoading(false);
+    if (err) {
+      setLoginError("Email o contraseña incorrectos");
+    } else {
+      setLoginPassword("");
+    }
+  }
+
+  async function signOutAdmin() {
+    await supabase.auth.signOut();
+  }
 
   const [emailFormOpen, setEmailFormOpen] = useState(false);
   const [emailInput, setEmailInput] = useState("");
@@ -143,6 +207,7 @@ export default function App() {
   const [emailError, setEmailError] = useState("");
 
   const [managePhone, setManagePhone] = useState("");
+  const [manageCode, setManageCode] = useState("");
   const [manageSearched, setManageSearched] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
 
@@ -179,19 +244,24 @@ export default function App() {
     if (Object.keys(errs).length > 0) return;
 
     setSubmitting(true);
-    const booking = {
-      date: dateKey(selectedDate),
-      date_label: formatDateLong(selectedDate),
-      start_minutes: selectedTime,
-      time_label: minutesToLabel(selectedTime),
-      duration: service.duration,
-      service_id: service.id,
-      service_name: service.name,
-      price: service.price,
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-    };
-    const saved = await addBooking(booking);
+    let saved = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const booking = {
+        date: dateKey(selectedDate),
+        date_label: formatDateLong(selectedDate),
+        start_minutes: selectedTime,
+        time_label: minutesToLabel(selectedTime),
+        duration: service.duration,
+        service_id: service.id,
+        service_name: service.name,
+        price: service.price,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        cancel_code: generateCancelCode(),
+      };
+      saved = await addBooking(booking);
+      if (!saved.error || saved.error.code !== "23505") break; // 23505 = código repetido, muy raro; reintenta con uno nuevo
+    }
     setSubmitting(false);
     if (saved.error) {
       const isConflict = saved.error.code === "23P01" || /exclu/i.test(saved.error.message || "");
@@ -248,26 +318,22 @@ export default function App() {
     setEmailSending(false);
   }
 
-  function checkPin() {
-    if (pinInput === ADMIN_PIN) {
-      setAdminUnlocked(true);
-      setPinError("");
-    } else {
-      setPinError("PIN incorrecto");
-    }
-  }
-
   const myBookings = useMemo(() => {
     if (!manageSearched) return [];
-    const normalized = managePhone.replace(/\s+/g, "");
+    const normalizedPhone = managePhone.replace(/\s+/g, "");
+    const normalizedCode = manageCode.trim().toUpperCase();
     const todayKey = dateKey(new Date());
     return bookings
-      .filter((b) => b.phone.replace(/\s+/g, "") === normalized && b.date >= todayKey)
+      .filter((b) =>
+        b.phone.replace(/\s+/g, "") === normalizedPhone &&
+        (b.cancel_code || "").toUpperCase() === normalizedCode &&
+        b.date >= todayKey
+      )
       .sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return a.start_minutes - b.start_minutes;
       });
-  }, [bookings, managePhone, manageSearched]);
+  }, [bookings, managePhone, manageCode, manageSearched]);
 
   async function cancelMyBooking(id) {
     setCancellingId(id);
@@ -344,7 +410,7 @@ export default function App() {
             {view === "client" && (
               <button
                 className="brb-btn"
-                onClick={() => { setView("manage"); setManagePhone(""); setManageSearched(false); }}
+                onClick={() => { setView("manage"); setManagePhone(""); setManageCode(""); setManageSearched(false); }}
                 style={{ background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "7px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}
               >
                 <CalendarX2 size={12} /> Mi reserva
@@ -372,26 +438,52 @@ export default function App() {
               <Loader2 size={22} className="brb-spin" style={{ animation: "spin 1s linear infinite" }} />
             </div>
           ) : view === "admin" ? (
-            !adminUnlocked ? (
+            !sessionChecked ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: "60px 0", color: "#8A7358" }}>
+                <Loader2 size={22} style={{ animation: "spin 1s linear infinite" }} />
+              </div>
+            ) : !session ? (
               <div style={{ maxWidth: 320, margin: "40px auto", textAlign: "center" }}>
                 <Lock size={26} color="#C08552" style={{ margin: "0 auto 14px" }} />
                 <div className="brb-serif" style={{ fontSize: 18, marginBottom: 6 }}>Acceso del propietario</div>
-                <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>Introduce el PIN de acceso</div>
+                <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>Inicia sesión para ver las reservas</div>
                 <input
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && checkPin()}
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  style={{ width: "100%", textAlign: "center", fontSize: 20, letterSpacing: "0.3em", padding: "10px", borderRadius: 10, border: "1px solid #4A3626", background: "#120C07", color: "#F1E6D8", marginBottom: 10 }}
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  type="email"
+                  placeholder="tu@email.com"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #4A3626", background: "#120C07", color: "#F1E6D8", marginBottom: 10, fontSize: 14 }}
                 />
-                {pinError && <div style={{ color: "#E29A9A", fontSize: 12, marginBottom: 10 }}>{pinError}</div>}
-                <button className="brb-btn" onClick={checkPin} style={{ background: "#C08552", color: "#1A110B", border: "none", borderRadius: 10, padding: "10px 20px", fontWeight: 600, cursor: "pointer", width: "100%" }}>Entrar</button>
+                <input
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && signIn()}
+                  type="password"
+                  placeholder="Contraseña"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #4A3626", background: "#120C07", color: "#F1E6D8", marginBottom: 10, fontSize: 14 }}
+                />
+                {loginError && <div style={{ color: "#E29A9A", fontSize: 12, marginBottom: 10 }}>{loginError}</div>}
+                <button
+                  className="brb-btn"
+                  onClick={signIn}
+                  disabled={loginLoading}
+                  style={{ background: "#C08552", color: "#1A110B", border: "none", borderRadius: 10, padding: "10px 20px", fontWeight: 600, cursor: loginLoading ? "default" : "pointer", width: "100%", opacity: loginLoading ? 0.7 : 1 }}
+                >
+                  {loginLoading ? "Entrando…" : "Entrar"}
+                </button>
               </div>
             ) : (
               <div>
-                <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Reservas</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div className="brb-serif" style={{ fontSize: 20 }}>Reservas</div>
+                  <button
+                    className="brb-btn"
+                    onClick={signOutAdmin}
+                    style={{ background: "transparent", border: "none", color: "#B99A76", fontSize: 11, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                  >
+                    <LogOut size={12} /> Cerrar sesión
+                  </button>
+                </div>
                 <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>
                   {sortedBookings.length === 0 ? "Todavía no hay reservas." : `${sortedBookings.length} reserva${sortedBookings.length !== 1 ? "s" : ""} en total`}
                 </div>
@@ -451,30 +543,37 @@ export default function App() {
             <div>
               <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Mi reserva</div>
               <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>
-                Introduce el teléfono con el que reservaste para ver o cancelar tu cita.
+                Introduce el teléfono y el código de cancelación que recibiste al reservar.
               </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+              <div style={{ marginBottom: 10 }}>
                 <input
                   value={managePhone}
                   onChange={(e) => setManagePhone(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && setManageSearched(true)}
-                  placeholder="600 000 000"
-                  style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #3A2A1C", background: "#120C07", color: "#F1E6D8", fontSize: 14 }}
+                  placeholder="Teléfono: 600 000 000"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #3A2A1C", background: "#120C07", color: "#F1E6D8", fontSize: 14, marginBottom: 8 }}
                 />
-                <button
-                  className="brb-btn"
-                  onClick={() => setManageSearched(true)}
-                  style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#C08552", color: "#1A110B", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <Search size={14} /> Buscar
-                </button>
+                <input
+                  value={manageCode}
+                  onChange={(e) => setManageCode(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && setManageSearched(true)}
+                  placeholder="Código de cancelación (ej. X7K2P9)"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #3A2A1C", background: "#120C07", color: "#F1E6D8", fontSize: 14, textTransform: "uppercase" }}
+                />
               </div>
+              <button
+                className="brb-btn"
+                onClick={() => setManageSearched(true)}
+                style={{ width: "100%", padding: "10px 16px", borderRadius: 8, border: "none", background: "#C08552", color: "#1A110B", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 18 }}
+              >
+                <Search size={14} /> Buscar
+              </button>
 
               {manageSearched && (
                 myBookings.length === 0 ? (
                   <div style={{ padding: "30px 0", textAlign: "center", color: "#6E5A44" }}>
                     <CalendarX2 size={26} style={{ margin: "0 auto 10px" }} />
-                    <div style={{ fontSize: 13 }}>No hemos encontrado ninguna cita futura con ese teléfono.</div>
+                    <div style={{ fontSize: 13 }}>No hemos encontrado ninguna cita futura con esos datos. Revisa el teléfono y el código.</div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -689,6 +788,10 @@ export default function App() {
                       <Row label="Precio" value={`${confirmed.price}€`} mono />
                       <Row label="Nombre" value={confirmed.name} />
                       <Row label="Teléfono" value={confirmed.phone} mono />
+                    </div>
+                    <div style={{ marginTop: 16, background: "#2A1B12", borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 11, color: "#B9A98C" }}>Código de cancelación — guárdalo para modificar o cancelar tu cita</div>
+                      <div className="brb-mono" style={{ fontSize: 22, fontWeight: 700, color: "#F1E6D8", letterSpacing: "0.15em", marginTop: 4 }}>{confirmed.cancel_code}</div>
                     </div>
                   </div>
 

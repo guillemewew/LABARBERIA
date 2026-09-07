@@ -32,6 +32,10 @@ export default async function handler(req, res) {
         <tr><td style="padding:4px 0; color:#555;">Hora</td><td style="padding:4px 0; text-align:right;"><strong>${booking.time_label || ''}</strong></td></tr>
         <tr><td style="padding:4px 0; color:#555;">Precio</td><td style="padding:4px 0; text-align:right;"><strong>${booking.price || ''}€</strong></td></tr>
       </table>
+      <div style="margin-top:16px; background:#F1E6D8; border-radius:8px; padding:12px 14px;">
+        <div style="font-size:12px; color:#7A6650;">Código de cancelación — guárdalo para modificar o cancelar tu cita</div>
+        <div style="font-size:20px; font-weight:700; letter-spacing:2px; color:#2A1B12; margin-top:4px;">${booking.cancel_code || ''}</div>
+      </div>
       <p style="margin-top:20px; color:#777; font-size:13px;">Si necesitas cambiar la cita, contáctanos por WhatsApp o por Instagram (@labarberia.breda).</p>
     </div>
   `;
