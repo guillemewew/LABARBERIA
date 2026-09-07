@@ -621,11 +621,11 @@ export default function App() {
       <div className="brb-shell">
         {/* Header */}
         <div style={{ background: "#120C07", padding: "16px 20px", borderBottom: "1px solid #3A2A1C" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, flexWrap: "wrap", rowGap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
               <img src="/logo.png" alt="La Barbería" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", background: "#F1E6D8", flexShrink: 0 }} />
               <div style={{ minWidth: 0 }}>
-                <div className="brb-serif" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15, letterSpacing: "0.02em" }}>LA BARBERÍA</div>
+                <div className="brb-serif" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15, letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>LA BARBERÍA</div>
                 <div className="brb-mono" style={{ fontSize: 9, color: "#B99A76", letterSpacing: "0.06em", marginTop: 3 }}>NEW OLD SCHOOL · SINCE 2024</div>
               </div>
             </div>
