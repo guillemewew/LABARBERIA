@@ -329,6 +329,8 @@ export default function App() {
   }, [bookings, managePhone, manageCode, manageSearched]);
 
   async function cancelMyBooking(id) {
+    const ok = window.confirm("¿Seguro que quieres cancelar esta cita? Esta acción no se puede deshacer.");
+    if (!ok) return;
     setCancellingId(id);
     await removeBooking(id);
     setCancellingId(null);
@@ -519,7 +521,10 @@ export default function App() {
                           </div>
                           <button
                             className="brb-btn"
-                            onClick={() => removeBooking(b.id)}
+                            onClick={() => {
+                              const ok = window.confirm(`¿Eliminar la reserva de ${b.name} (${b.time_label})? Esta acción no se puede deshacer.`);
+                              if (ok) removeBooking(b.id);
+                            }}
                             aria-label="Eliminar reserva"
                             style={{ background: "transparent", border: "none", color: "#B87A7A", cursor: "pointer", padding: 6 }}
                           >
