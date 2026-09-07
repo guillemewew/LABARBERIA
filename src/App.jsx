@@ -105,9 +105,9 @@ function useBookings() {
 
   const addBooking = useCallback(async (booking) => {
     const { data, error: err } = await supabase.from("bookings").insert([booking]).select();
-    if (err) { setError(err.message); return null; }
+    if (err) return { booking: null, error: err };
     await load();
-    return data ? data[0] : null;
+    return { booking: data ? data[0] : null, error: null };
   }, [load]);
 
   const removeBooking = useCallback(async (id) => {
@@ -189,8 +189,19 @@ export default function App() {
     };
     const saved = await addBooking(booking);
     setSubmitting(false);
-    if (saved) {
-      setConfirmed(saved);
+    if (saved.error) {
+      const isConflict = saved.error.code === "23P01" || /exclu/i.test(saved.error.message || "");
+      if (isConflict) {
+        setErrors({ general: "Esa hora se acaba de reservar por otra persona. Elige otra, por favor." });
+        setStep(2);
+        setSelectedTime(null);
+      } else {
+        setErrors({ general: "No se pudo completar la reserva. Inténtalo de nuevo." });
+      }
+      return;
+    }
+    if (saved.booking) {
+      setConfirmed(saved.booking);
       setStep(4);
     }
   }
@@ -512,6 +523,12 @@ export default function App() {
                     />
                     {errors.phone && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 4 }}>{errors.phone}</div>}
                   </div>
+
+                  {errors.general && (
+                    <div style={{ background: "#3A1E1E", border: "1px solid #6B3232", color: "#E8B4B4", fontSize: 12, borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
+                      {errors.general}
+                    </div>
+                  )}
 
                   <button
                     className="brb-btn"
