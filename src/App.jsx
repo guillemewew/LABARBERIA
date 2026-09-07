@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Scissors, Clock, Check, ChevronLeft, ChevronRight,
-  Lock, Trash2, ArrowLeft, CalendarCheck2, MessageCircle, Mail, Instagram, Loader2
+  Lock, Trash2, ArrowLeft, CalendarCheck2, MessageCircle, Mail, Instagram, Loader2, CalendarX2, Search
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -142,6 +142,10 @@ export default function App() {
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState("");
 
+  const [managePhone, setManagePhone] = useState("");
+  const [manageSearched, setManageSearched] = useState(false);
+  const [cancellingId, setCancellingId] = useState(null);
+
   const days = useMemo(() => generateUpcomingDays(21), []);
   const visibleDays = days.slice(dayOffset, dayOffset + 6);
 
@@ -253,6 +257,24 @@ export default function App() {
     }
   }
 
+  const myBookings = useMemo(() => {
+    if (!manageSearched) return [];
+    const normalized = managePhone.replace(/\s+/g, "");
+    const todayKey = dateKey(new Date());
+    return bookings
+      .filter((b) => b.phone.replace(/\s+/g, "") === normalized && b.date >= todayKey)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.start_minutes - b.start_minutes;
+      });
+  }, [bookings, managePhone, manageSearched]);
+
+  async function cancelMyBooking(id) {
+    setCancellingId(id);
+    await removeBooking(id);
+    setCancellingId(null);
+  }
+
   const sortedBookings = useMemo(() => {
     return [...bookings].sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
@@ -291,13 +313,24 @@ export default function App() {
               <div className="brb-mono" style={{ fontSize: 9, color: "#B99A76", letterSpacing: "0.08em", marginTop: 3 }}>NEW OLD SCHOOL · SINCE 2024</div>
             </div>
           </div>
-          <button
-            className="brb-btn"
-            onClick={() => setView(view === "client" ? "admin" : "client")}
-            style={{ background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "7px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}
-          >
-            {view === "client" ? <><Lock size={12} /> Panel</> : <><ArrowLeft size={12} /> Reservar</>}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {view === "client" && (
+              <button
+                className="brb-btn"
+                onClick={() => { setView("manage"); setManagePhone(""); setManageSearched(false); }}
+                style={{ background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "7px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}
+              >
+                <CalendarX2 size={12} /> Mi reserva
+              </button>
+            )}
+            <button
+              className="brb-btn"
+              onClick={() => setView(view === "client" ? "admin" : "client")}
+              style={{ background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "7px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}
+            >
+              {view === "client" ? <><Lock size={12} /> Panel</> : <><ArrowLeft size={12} /> Reservar</>}
+            </button>
+          </div>
         </div>
 
         <div style={{ padding: "22px 20px" }}>
@@ -371,6 +404,60 @@ export default function App() {
                 ))}
               </div>
             )
+          ) : view === "manage" ? (
+            <div>
+              <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Mi reserva</div>
+              <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>
+                Introduce el teléfono con el que reservaste para ver o cancelar tu cita.
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+                <input
+                  value={managePhone}
+                  onChange={(e) => setManagePhone(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && setManageSearched(true)}
+                  placeholder="600 000 000"
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #3A2A1C", background: "#120C07", color: "#F1E6D8", fontSize: 14 }}
+                />
+                <button
+                  className="brb-btn"
+                  onClick={() => setManageSearched(true)}
+                  style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#C08552", color: "#1A110B", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <Search size={14} /> Buscar
+                </button>
+              </div>
+
+              {manageSearched && (
+                myBookings.length === 0 ? (
+                  <div style={{ padding: "30px 0", textAlign: "center", color: "#6E5A44" }}>
+                    <CalendarX2 size={26} style={{ margin: "0 auto 10px" }} />
+                    <div style={{ fontSize: 13 }}>No hemos encontrado ninguna cita futura con ese teléfono.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {myBookings.map((b) => (
+                      <div key={b.id} style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 500 }}>{b.service_name}</div>
+                            <div className="brb-mono" style={{ fontSize: 11, color: "#B99A76", marginTop: 2, textTransform: "capitalize" }}>{b.date_label} · {b.time_label}</div>
+                          </div>
+                          <div className="brb-mono" style={{ fontSize: 13, color: "#C08552" }}>{b.price}€</div>
+                        </div>
+                        <button
+                          className="brb-btn"
+                          onClick={() => cancelMyBooking(b.id)}
+                          disabled={cancellingId === b.id}
+                          style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #6B3232", background: "transparent", color: "#E29A9A", fontSize: 12, fontWeight: 500, cursor: cancellingId === b.id ? "default" : "pointer", opacity: cancellingId === b.id ? 0.6 : 1 }}
+                        >
+                          {cancellingId === b.id ? "Cancelando…" : "Cancelar esta cita"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
           ) : (
             <>
               {step < 4 && (
