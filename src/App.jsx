@@ -30,21 +30,6 @@ const SALON_PHONE_LABEL = "972 97 05 37"; // el mismo teléfono, formateado para
 const SALON_ADDRESS = "C/ Capellans, 22, 17400 Breda (Girona)";
 const SALON_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("La Barbería, " + SALON_ADDRESS)}`;
 
-// --- Fotos del local y de trabajos realizados ---
-// Coloca las imágenes en /public/gallery/ con estos nombres exactos (o cambia las rutas de
-// abajo si prefieres otros nombres). Mientras no exista el archivo, se muestra un marcador
-// discreto en su lugar, así que no pasa nada si vas añadiéndolas poco a poco.
-// Tamaño recomendado: cuadradas o 4:3, exportadas desde Instagram, máx. ~500 KB cada una.
-const LOCAL_PHOTO = { src: "/gallery/local.jpg", alt: "Interior de La Barbería" };
-const WORK_PHOTOS = [
-  { src: "/gallery/trabajo-1.jpg", alt: "Corte de pelo — La Barbería" },
-  { src: "/gallery/trabajo-2.jpg", alt: "Arreglo de barba — La Barbería" },
-  { src: "/gallery/trabajo-3.jpg", alt: "Degradado — La Barbería" },
-  { src: "/gallery/trabajo-4.jpg", alt: "Corte + barba — La Barbería" },
-  { src: "/gallery/trabajo-5.jpg", alt: "Camuflaje de canas — La Barbería" },
-  { src: "/gallery/trabajo-6.jpg", alt: "Afeitado clásico a navaja — La Barbería" },
-];
-
 // Horario real: martes a viernes en dos turnos, sábado en turno único, domingo y lunes cerrado
 function getDayRanges(dow) {
   if ([2, 3, 4, 5].includes(dow)) return [{ start: 9 * 60, end: 13 * 60 }, { start: 15 * 60, end: 20 * 60 }];
@@ -770,8 +755,6 @@ export default function App() {
 
               {step === 1 && (
                 <div>
-                  <BannerImg src={LOCAL_PHOTO.src} alt={LOCAL_PHOTO.alt} />
-
                   <div style={{ display: "flex", flexWrap: "wrap", columnGap: 18, rowGap: 8, marginBottom: 22 }}>
                     <a
                       href={SALON_MAPS_URL}
@@ -787,15 +770,6 @@ export default function App() {
                     >
                       <Phone size={14} color="#C08552" style={{ flexShrink: 0 }} /> {SALON_PHONE_LABEL}
                     </a>
-                  </div>
-
-                  <div className="brb-mono" style={{ fontSize: 11, color: "#8A7358", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 10 }}>
-                    Nuestro trabajo
-                  </div>
-                  <div className="brb-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 26, paddingBottom: 2 }}>
-                    {WORK_PHOTOS.map((p) => (
-                      <GalleryImg key={p.src} src={p.src} alt={p.alt} size={92} />
-                    ))}
                   </div>
 
                   <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Elige un servicio</div>
@@ -1075,58 +1049,5 @@ function Row({ label, value, mono, cap }) {
       <span style={{ color: "#7A6650" }}>{label}</span>
       <span className={mono ? "brb-mono" : ""} style={{ fontWeight: 500, textTransform: cap ? "capitalize" : "none" }}>{value}</span>
     </div>
-  );
-}
-
-// Foto ancha del local (portada). Si el archivo todavía no existe en /public/gallery,
-// muestra un marcador discreto en su lugar en vez de romper el diseño.
-function BannerImg({ src, alt }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <div
-      style={{
-        width: "100%", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", marginBottom: 16,
-        border: "1px solid #3A2A1C", background: "#120C07",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}
-    >
-      {failed ? (
-        <Scissors size={26} color="#3A2A1C" />
-      ) : (
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          onError={() => setFailed(true)}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
-      )}
-    </div>
-  );
-}
-
-// Miniatura cuadrada para la tira de "Nuestro trabajo". Mismo fallback discreto que BannerImg.
-function GalleryImg({ src, alt, size }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return (
-      <div
-        style={{
-          width: size, height: size, borderRadius: 10, background: "#120C07", border: "1px dashed #3A2A1C",
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }}
-      >
-        <Scissors size={16} color="#3A2A1C" />
-      </div>
-    );
-  }
-  return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      style={{ width: size, height: size, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #3A2A1C", background: "#120C07" }}
-    />
   );
 }
