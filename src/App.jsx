@@ -21,7 +21,7 @@ const MONTH_NAMES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "se
 // (El PIN ya no se usa — el panel ahora requiere iniciar sesión de verdad con Supabase Auth)
 
 // --- Datos de contacto del negocio ---
-const SALON_WHATSAPP = "34600000000"; // formato internacional, sin '+' ni espacios — CAMBIA ESTO
+const SALON_WHATSAPP = "34638239929"; // formato internacional, sin '+' ni espacios — CAMBIA ESTO
 const SALON_EMAIL = "hola@labarberia.example"; // CAMBIA ESTO
 const SALON_INSTAGRAM = "https://www.instagram.com/labarberia.breda/";
 
