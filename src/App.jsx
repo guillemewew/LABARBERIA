@@ -7,31 +7,130 @@ import {
 import { supabase } from "./supabaseClient";
 
 const SERVICES = [
-  { id: "corte", name: "Corte de pelo", duration: 30, price: 15 },
-  { id: "barba", name: "Arreglo de barba", duration: 20, price: 12 },
-  { id: "corte-barba", name: "Corte + barba", duration: 45, price: 22 },
-  { id: "afeitado", name: "Afeitado clásico a navaja", duration: 30, price: 15 },
-  { id: "nino", name: "Corte niño (-12 años)", duration: 25, price: 12 },
-  { id: "color", name: "Camuflaje de canas", duration: 45, price: 25 },
+  { id: "corte", name: { es: "Corte de pelo", ca: "Tall de cabell" }, duration: 30, price: 15 },
+  { id: "barba", name: { es: "Arreglo de barba", ca: "Arranjament de barba" }, duration: 20, price: 12 },
+  { id: "corte-barba", name: { es: "Corte + barba", ca: "Tall + barba" }, duration: 45, price: 22 },
+  { id: "afeitado", name: { es: "Afeitado clásico a navaja", ca: "Afaitat clàssic a navalla" }, duration: 30, price: 15 },
+  { id: "nino", name: { es: "Corte niño (-12 años)", ca: "Tall nen (-12 anys)" }, duration: 25, price: 12 },
+  { id: "color", name: { es: "Camuflaje de canas", ca: "Camuflatge de cabells blancs" }, duration: 45, price: 25 },
 ];
 
-const DAY_NAMES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-const DAY_NAMES_FULL = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-const MONTH_NAMES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const DAY_NAMES = {
+  es: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"],
+  ca: ["dg", "dl", "dt", "dc", "dj", "dv", "ds"],
+};
+const DAY_NAMES_FULL = {
+  es: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+  ca: ["diumenge", "dilluns", "dimarts", "dimecres", "dijous", "divendres", "dissabte"],
+};
+const MONTH_NAMES = {
+  es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+  ca: ["gen", "feb", "mar", "abr", "maig", "juny", "jul", "ag", "set", "oct", "nov", "des"],
+};
 
 // (El PIN ya no se usa — el panel ahora requiere iniciar sesión de verdad con Supabase Auth)
 
 // --- Datos de contacto del negocio ---
-const SALON_WHATSAPP = "34638239929"; // formato internacional, sin '+' ni espacios — CAMBIA ESTO
+const SALON_WHATSAPP = "34638239929"; // formato internacional, sin '+' ni espacios
 const SALON_EMAIL = "hola@labarberia.example"; // CAMBIA ESTO
 const SALON_INSTAGRAM = "https://www.instagram.com/labarberia.breda/";
-const SALON_PHONE = "972970537"; // teléfono de contacto, sin espacios (para el enlace "llamar")
-const SALON_PHONE_LABEL = "972 97 05 37"; // el mismo teléfono, formateado para mostrarlo
+const SALON_PHONE = "972970537";
+const SALON_PHONE_LABEL = "972 97 05 37";
 const SALON_ADDRESS = "C/ Capellans, 22, 17400 Breda (Girona)";
 const SALON_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("La Barbería, " + SALON_ADDRESS)}`;
 
 // EDITAR: sustituye por la política real del negocio en cuanto el dueño te la confirme
-const CANCELLATION_POLICY = "Puedes cancelar o cambiar tu cita desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.";
+const CANCELLATION_POLICY = {
+  es: "Puedes cancelar o cambiar tu cita gratis hasta 2 horas antes, desde la sección \"Mi reserva\" con tu teléfono y tu código de cancelación. Si no puedes venir, avísanos con tiempo — así podemos ofrecer esa hora a otro cliente.",
+  ca: "Pots cancel·lar o canviar la teva cita gratis fins a 2 hores abans, des de la secció \"La meva reserva\" amb el teu telèfon i el teu codi de cancel·lació. Si no pots venir, avisa'ns amb temps — així podem oferir aquesta hora a un altre client.",
+};
+
+// --- Traducciones de la interfaz ---
+const STR = {
+  myBooking: { es: "Mi reserva", ca: "La meva reserva" },
+  panel: { es: "Panel", ca: "Panell" },
+  reserve: { es: "Reservar", ca: "Reservar" },
+  dbErrorPrefix: { es: "Error de conexión con la base de datos:", ca: "Error de connexió amb la base de dades:" },
+  dbErrorSuffix: { es: "Revisa tu archivo .env.", ca: "Revisa el teu arxiu .env." },
+  ownerAccess: { es: "Acceso del propietario", ca: "Accés del propietari" },
+  loginSubtitle: { es: "Inicia sesión para ver las reservas", ca: "Inicia sessió per veure les reserves" },
+  emailPlaceholder: { es: "tu@email.com", ca: "el.teu@email.com" },
+  passwordPlaceholder: { es: "Contraseña", ca: "Contrasenya" },
+  loginErrorEmpty: { es: "Introduce el email y la contraseña", ca: "Introdueix l'email i la contrasenya" },
+  loginErrorWrong: { es: "Email o contraseña incorrectos", ca: "Email o contrasenya incorrectes" },
+  loggingIn: { es: "Entrando…", ca: "Entrant…" },
+  enter: { es: "Entrar", ca: "Entrar" },
+  bookingsTitle: { es: "Reservas", ca: "Reserves" },
+  logout: { es: "Cerrar sesión", ca: "Tancar sessió" },
+  noBookingsYet: { es: "Todavía no hay reservas.", ca: "Encara no hi ha reserves." },
+  weekBookings: { es: "Reservas esta semana", ca: "Reserves aquesta setmana" },
+  weekRevenue: { es: "Ingresos esta semana", ca: "Ingressos aquesta setmana" },
+  popularService: { es: "Servicio más popular", ca: "Servei més popular" },
+  clientBookingsHere: { es: "Las reservas de tus clientes aparecerán aquí.", ca: "Les reserves dels teus clients apareixeran aquí." },
+  manageTitle: { es: "Mi reserva", ca: "La meva reserva" },
+  manageSubtitle: { es: "Introduce el teléfono y el código de cancelación que recibiste al reservar.", ca: "Introdueix el telèfon i el codi de cancel·lació que vas rebre en reservar." },
+  phoneFieldPlaceholder: { es: "Teléfono: 600 000 000", ca: "Telèfon: 600 000 000" },
+  codePlaceholder: { es: "Código de cancelación (ej. X7K2P9)", ca: "Codi de cancel·lació (ex. X7K2P9)" },
+  search: { es: "Buscar", ca: "Cercar" },
+  noFutureBooking: { es: "No hemos encontrado ninguna cita futura con esos datos. Revisa el teléfono y el código.", ca: "No hem trobat cap cita futura amb aquestes dades. Revisa el telèfon i el codi." },
+  changeTime: { es: "Cambiar hora", ca: "Canviar hora" },
+  close: { es: "Cerrar", ca: "Tancar" },
+  cancelThisAppt: { es: "Cancelar esta cita", ca: "Cancel·lar aquesta cita" },
+  cancelling: { es: "Cancelando…", ca: "Cancel·lant…" },
+  noFreeSlotsShort: { es: "No quedan horas libres ese día.", ca: "No queden hores lliures aquest dia." },
+  saving: { es: "Guardando…", ca: "Desant…" },
+  saveNewTime: { es: "Guardar nueva hora", ca: "Desar nova hora" },
+  chooseService: { es: "Elige un servicio", ca: "Tria un servei" },
+  scheduleText: { es: "Martes a viernes 9:00–13:00 y 15:00–20:00 · Sábado 8:00–14:00", ca: "Dimarts a divendres 9:00–13:00 i 15:00–20:00 · Dissabte 8:00–14:00" },
+  min: { es: "min", ca: "min" },
+  changeService: { es: "Cambiar servicio", ca: "Canviar servei" },
+  noFreeSlotsLong: { es: "No quedan horas libres este día. Prueba otro día.", ca: "No queden hores lliures aquest dia. Prova un altre dia." },
+  continue: { es: "Continuar", ca: "Continuar" },
+  yourData: { es: "Tus datos", ca: "Les teves dades" },
+  nameLabel: { es: "Nombre", ca: "Nom" },
+  namePlaceholder: { es: "Tu nombre", ca: "El teu nom" },
+  errName: { es: "Introduce tu nombre", ca: "Introdueix el teu nom" },
+  phoneLabel: { es: "Teléfono", ca: "Telèfon" },
+  phonePlaceholder: { es: "600 000 000", ca: "600 000 000" },
+  errPhone: { es: "Introduce un teléfono válido", ca: "Introdueix un telèfon vàlid" },
+  emailOptionalLabel: { es: "Email (opcional — recibirás la confirmación y el código de cancelación automáticamente)", ca: "Email (opcional — rebràs la confirmació i el codi de cancel·lació automàticament)" },
+  emailPlaceholder2: { es: "tunombre@email.com", ca: "elteunom@email.com" },
+  errEmail: { es: "Ese email no parece válido", ca: "Aquest email no sembla vàlid" },
+  consentSuffixEmail: { es: " y email", ca: " i email" },
+  consentPrefix: { es: "Acepto que La Barbería trate mis datos (nombre, teléfono", ca: "Accepto que La Barberia tracti les meves dades (nom, telèfon" },
+  consentSuffix: { es: ") únicamente para gestionar mi cita, según la normativa de protección de datos.", ca: ") únicament per gestionar la meva cita, segons la normativa de protecció de dades." },
+  errConsent: { es: "Tienes que aceptar el tratamiento de datos para reservar", ca: "Has d'acceptar el tractament de dades per reservar" },
+  errConflict: { es: "Esa hora se acaba de reservar por otra persona. Elige otra, por favor.", ca: "Aquesta hora s'acaba de reservar per una altra persona. Tria'n una altra, si us plau." },
+  errGeneral: { es: "No se pudo completar la reserva. Inténtalo de nuevo.", ca: "No s'ha pogut completar la reserva. Torna-ho a provar." },
+  bookingLoading: { es: "Reservando…", ca: "Reservant…" },
+  confirmBooking: { es: "Confirmar reserva", ca: "Confirmar reserva" },
+  bookingConfirmed: { es: "Reserva confirmada", ca: "Reserva confirmada" },
+  rowService: { es: "Servicio", ca: "Servei" },
+  rowDate: { es: "Fecha", ca: "Data" },
+  rowTime: { es: "Hora", ca: "Hora" },
+  rowDuration: { es: "Duración", ca: "Durada" },
+  rowPrice: { es: "Precio", ca: "Preu" },
+  rowName: { es: "Nombre", ca: "Nom" },
+  rowPhone: { es: "Teléfono", ca: "Telèfon" },
+  cancelCodeLabel: { es: "Código de cancelación — guárdalo para modificar o cancelar tu cita", ca: "Codi de cancel·lació — guarda'l per modificar o cancel·lar la teva cita" },
+  sendConfirmationText: { es: "Envía la confirmación para que quede constancia:", ca: "Envia la confirmació perquè quedi constància:" },
+  whatsapp: { es: "WhatsApp", ca: "WhatsApp" },
+  emailBtn: { es: "Email", ca: "Email" },
+  emailFormLabel: { es: "Te enviamos la confirmación a tu email:", ca: "T'enviem la confirmació al teu email:" },
+  send: { es: "Enviar", ca: "Enviar" },
+  errEmailForm: { es: "Introduce un email válido", ca: "Introdueix un email vàlid" },
+  errEmailSend: { es: "No se pudo enviar el email. Inténtalo de nuevo.", ca: "No s'ha pogut enviar l'email. Torna-ho a provar." },
+  emailAutoError: { es: "No se pudo enviar el email automáticamente. Guarda igualmente tu código de cancelación de arriba.", ca: "No s'ha pogut enviar l'email automàticament. Guarda igualment el teu codi de cancel·lació de dalt." },
+  addToCalendar: { es: "Añadir a mi calendario", ca: "Afegir al meu calendari" },
+  newBooking: { es: "Hacer otra reserva", ca: "Fer una altra reserva" },
+  cancellationPolicyLink: { es: "Política de cancelación", ca: "Política de cancel·lació" },
+  deleteBookingAria: { es: "Eliminar reserva", ca: "Eliminar reserva" },
+};
+
+function pad(n) { return n.toString().padStart(2, "0"); }
+function dateKey(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function minutesToLabel(m) { return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; }
+function formatDateLong(d, lang) { return `${DAY_NAMES_FULL[lang][d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[lang][d.getMonth()]}`; }
 
 // Horario real: martes a viernes en dos turnos, sábado en turno único, domingo y lunes cerrado
 function getDayRanges(dow) {
@@ -39,11 +138,6 @@ function getDayRanges(dow) {
   if (dow === 6) return [{ start: 8 * 60, end: 14 * 60 }];
   return [];
 }
-
-function pad(n) { return n.toString().padStart(2, "0"); }
-function dateKey(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-function minutesToLabel(m) { return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; }
-function formatDateLong(d) { return `${DAY_NAMES_FULL[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`; }
 
 function generateUpcomingDays(count) {
   const days = [];
@@ -195,6 +289,19 @@ function useBookings() {
 
 export default function App() {
   const { bookings, loaded, error, addBooking, removeBooking, updateBooking } = useBookings();
+
+  const [lang, setLang] = useState(() => {
+    try {
+      return localStorage.getItem("labarberia-lang") || "ca";
+    } catch {
+      return "ca";
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("labarberia-lang", lang); } catch {}
+  }, [lang]);
+  const t = (key) => (STR[key] ? STR[key][lang] : key);
+
   const [view, setView] = useState("client");
   const [step, setStep] = useState(1);
   const [service, setService] = useState(null);
@@ -229,7 +336,7 @@ export default function App() {
   async function signIn() {
     setLoginError("");
     if (!loginEmail.trim() || !loginPassword) {
-      setLoginError("Introduce el email y la contraseña");
+      setLoginError(t("loginErrorEmpty"));
       return;
     }
     setLoginLoading(true);
@@ -239,7 +346,7 @@ export default function App() {
     });
     setLoginLoading(false);
     if (err) {
-      setLoginError("Email o contraseña incorrectos");
+      setLoginError(t("loginErrorWrong"));
     } else {
       setLoginPassword("");
     }
@@ -295,22 +402,22 @@ export default function App() {
 
   async function validateAndConfirm() {
     const errs = {};
-    if (!form.name.trim()) errs.name = "Introduce tu nombre";
-    if (!form.phone.trim() || form.phone.trim().length < 9) errs.phone = "Introduce un teléfono válido";
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errs.email = "Ese email no parece válido";
-    if (!consentChecked) errs.consent = "Tienes que aceptar el tratamiento de datos para reservar";
+    if (!form.name.trim()) errs.name = t("errName");
+    if (!form.phone.trim() || form.phone.trim().length < 9) errs.phone = t("errPhone");
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errs.email = t("errEmail");
+    if (!consentChecked) errs.consent = t("errConsent");
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
     setSubmitting(true);
     const booking = {
       date: dateKey(selectedDate),
-      date_label: formatDateLong(selectedDate),
+      date_label: formatDateLong(selectedDate, lang),
       start_minutes: selectedTime,
       time_label: minutesToLabel(selectedTime),
       duration: service.duration,
       service_id: service.id,
-      service_name: service.name,
+      service_name: service.name[lang],
       price: service.price,
       name: form.name.trim(),
       phone: form.phone.trim(),
@@ -322,11 +429,11 @@ export default function App() {
     if (saved.error) {
       const isConflict = saved.error.code === "23P01" || /exclu/i.test(saved.error.message || "");
       if (isConflict) {
-        setErrors({ general: "Esa hora se acaba de reservar por otra persona. Elige otra, por favor." });
+        setErrors({ general: t("errConflict") });
         setStep(2);
         setSelectedTime(null);
       } else {
-        setErrors({ general: "No se pudo completar la reserva. Inténtalo de nuevo." });
+        setErrors({ general: t("errGeneral") });
       }
       return;
     }
@@ -369,7 +476,7 @@ export default function App() {
 
   async function sendConfirmationEmail() {
     if (!emailInput.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim())) {
-      setEmailError("Introduce un email válido");
+      setEmailError(t("errEmailForm"));
       return;
     }
     setEmailSending(true);
@@ -384,7 +491,7 @@ export default function App() {
       if (!r.ok) throw new Error(data.error || "Error al enviar");
       setEmailSent(true);
     } catch (err) {
-      setEmailError("No se pudo enviar el email. Inténtalo de nuevo.");
+      setEmailError(t("errEmailSend"));
     }
     setEmailSending(false);
   }
@@ -407,7 +514,11 @@ export default function App() {
   }, [bookings, managePhone, manageCode, manageSearched]);
 
   async function cancelMyBooking(id) {
-    const ok = window.confirm("¿Seguro que quieres cancelar esta cita? Esta acción no se puede deshacer.");
+    const ok = window.confirm(
+      lang === "ca"
+        ? "Segur que vols cancel·lar aquesta cita? Aquesta acció no es pot desfer."
+        : "¿Seguro que quieres cancelar esta cita? Esta acción no se puede deshacer."
+    );
     if (!ok) return;
     setCancellingId(id);
     await removeBooking(id);
@@ -435,14 +546,16 @@ export default function App() {
     setEditError("");
     const result = await updateBooking(editingBooking.id, {
       date: dateKey(editDate),
-      date_label: formatDateLong(editDate),
+      date_label: formatDateLong(editDate, lang),
       start_minutes: editTime,
       time_label: minutesToLabel(editTime),
     });
     setEditSaving(false);
     if (result.error) {
       const isConflict = result.error.code === "23P01" || /exclu/i.test(result.error.message || "");
-      setEditError(isConflict ? "Esa hora se acaba de ocupar. Elige otra." : "No se pudo guardar el cambio. Inténtalo de nuevo.");
+      setEditError(isConflict
+        ? (lang === "ca" ? "Aquesta hora s'acaba d'ocupar. Tria'n una altra." : "Esa hora se acaba de ocupar. Elige otra.")
+        : (lang === "ca" ? "No s'ha pogut desar el canvi. Torna-ho a provar." : "No se pudo guardar el cambio. Inténtalo de nuevo."));
       return;
     }
     setEditingBooking(null);
@@ -508,11 +621,27 @@ export default function App() {
       <div className="brb-shell">
         {/* Header */}
         <div style={{ background: "#120C07", padding: "16px 20px", borderBottom: "1px solid #3A2A1C" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <img src="/logo.png" alt="La Barbería" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", background: "#F1E6D8", flexShrink: 0 }} />
-            <div style={{ minWidth: 0 }}>
-              <div className="brb-serif" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15, letterSpacing: "0.02em" }}>LA BARBERÍA</div>
-              <div className="brb-mono" style={{ fontSize: 9, color: "#B99A76", letterSpacing: "0.06em", marginTop: 3 }}>NEW OLD SCHOOL · SINCE 2024</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, flexWrap: "wrap", rowGap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <img src="/logo.png" alt="La Barbería" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", background: "#F1E6D8", flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}>
+                <div className="brb-serif" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15, letterSpacing: "0.02em" }}>LA BARBERÍA</div>
+                <div className="brb-mono" style={{ fontSize: 9, color: "#B99A76", letterSpacing: "0.06em", marginTop: 3 }}>NEW OLD SCHOOL · SINCE 2024</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", border: "1px solid #4A3626", borderRadius: 999, overflow: "hidden", flexShrink: 0 }}>
+              <button
+                onClick={() => setLang("ca")}
+                style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, background: lang === "ca" ? "#C08552" : "transparent", color: lang === "ca" ? "#1A110B" : "#D8B98C", border: "none", cursor: "pointer" }}
+              >
+                CA
+              </button>
+              <button
+                onClick={() => setLang("es")}
+                style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, background: lang === "es" ? "#C08552" : "transparent", color: lang === "es" ? "#1A110B" : "#D8B98C", border: "none", cursor: "pointer" }}
+              >
+                ES
+              </button>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -522,7 +651,7 @@ export default function App() {
                 onClick={() => { setView("manage"); setManagePhone(""); setManageCode(""); setManageSearched(false); }}
                 style={{ flex: 1, background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "8px 10px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, cursor: "pointer", whiteSpace: "nowrap" }}
               >
-                <CalendarX2 size={13} /> Mi reserva
+                <CalendarX2 size={13} /> {t("myBooking")}
               </button>
             )}
             <button
@@ -530,7 +659,7 @@ export default function App() {
               onClick={() => setView(view === "client" ? "admin" : "client")}
               style={{ flex: 1, background: "transparent", border: "1px solid #4A3626", color: "#D8B98C", borderRadius: 999, padding: "8px 10px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, cursor: "pointer", whiteSpace: "nowrap" }}
             >
-              {view === "client" ? <><Lock size={13} /> Panel</> : <><ArrowLeft size={13} /> Reservar</>}
+              {view === "client" ? <><Lock size={13} /> {t("panel")}</> : <><ArrowLeft size={13} /> {t("reserve")}</>}
             </button>
           </div>
         </div>
@@ -538,7 +667,7 @@ export default function App() {
         <div style={{ padding: "22px 20px" }}>
           {error && (
             <div style={{ background: "#3A1E1E", border: "1px solid #6B3232", color: "#E8B4B4", fontSize: 12, borderRadius: 8, padding: "10px 12px", marginBottom: 16 }}>
-              Error de conexión con la base de datos: {error}. Revisa tu archivo .env.
+              {t("dbErrorPrefix")} {error}. {t("dbErrorSuffix")}
             </div>
           )}
 
@@ -554,13 +683,13 @@ export default function App() {
             ) : !session ? (
               <div style={{ maxWidth: 320, margin: "40px auto", textAlign: "center" }}>
                 <Lock size={26} color="#C08552" style={{ margin: "0 auto 14px" }} />
-                <div className="brb-serif" style={{ fontSize: 18, marginBottom: 6 }}>Acceso del propietario</div>
-                <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>Inicia sesión para ver las reservas</div>
+                <div className="brb-serif" style={{ fontSize: 18, marginBottom: 6 }}>{t("ownerAccess")}</div>
+                <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>{t("loginSubtitle")}</div>
                 <input
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   type="email"
-                  placeholder="tu@email.com"
+                  placeholder={t("emailPlaceholder")}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #4A3626", background: "#120C07", color: "#F1E6D8", marginBottom: 10, fontSize: 14 }}
                 />
                 <input
@@ -568,7 +697,7 @@ export default function App() {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && signIn()}
                   type="password"
-                  placeholder="Contraseña"
+                  placeholder={t("passwordPlaceholder")}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #4A3626", background: "#120C07", color: "#F1E6D8", marginBottom: 10, fontSize: 14 }}
                 />
                 {loginError && <div style={{ color: "#E29A9A", fontSize: 12, marginBottom: 10 }}>{loginError}</div>}
@@ -578,44 +707,46 @@ export default function App() {
                   disabled={loginLoading}
                   style={{ background: "#C08552", color: "#1A110B", border: "none", borderRadius: 10, padding: "10px 20px", fontWeight: 600, cursor: loginLoading ? "default" : "pointer", width: "100%", opacity: loginLoading ? 0.7 : 1 }}
                 >
-                  {loginLoading ? "Entrando…" : "Entrar"}
+                  {loginLoading ? t("loggingIn") : t("enter")}
                 </button>
               </div>
             ) : (
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                  <div className="brb-serif" style={{ fontSize: 20 }}>Reservas</div>
+                  <div className="brb-serif" style={{ fontSize: 20 }}>{t("bookingsTitle")}</div>
                   <button
                     className="brb-btn"
                     onClick={signOutAdmin}
                     style={{ background: "transparent", border: "none", color: "#B99A76", fontSize: 11, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                   >
-                    <LogOut size={12} /> Cerrar sesión
+                    <LogOut size={12} /> {t("logout")}
                   </button>
                 </div>
                 <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 16 }}>
-                  {sortedBookings.length === 0 ? "Todavía no hay reservas." : `${sortedBookings.length} reserva${sortedBookings.length !== 1 ? "s" : ""} en total`}
+                  {sortedBookings.length === 0
+                    ? t("noBookingsYet")
+                    : `${sortedBookings.length} reserva${sortedBookings.length !== 1 ? "s" : ""} en total`}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 22 }}>
                   <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 10px" }}>
                     <div className="brb-mono" style={{ fontSize: 20, fontWeight: 600, color: "#C08552" }}>{stats.weekCount}</div>
-                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 2 }}>Reservas esta semana</div>
+                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 2 }}>{t("weekBookings")}</div>
                   </div>
                   <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 10px" }}>
                     <div className="brb-mono" style={{ fontSize: 20, fontWeight: 600, color: "#C08552" }}>{stats.weekRevenue}€</div>
-                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 2 }}>Ingresos esta semana</div>
+                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 2 }}>{t("weekRevenue")}</div>
                   </div>
                   <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: "12px 10px" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#C08552", lineHeight: 1.3 }}>{stats.popular}</div>
-                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 4 }}>Servicio más popular</div>
+                    <div style={{ fontSize: 10, color: "#B99A76", marginTop: 4 }}>{t("popularService")}</div>
                   </div>
                 </div>
 
                 {Object.keys(grouped).length === 0 && (
                   <div style={{ padding: "40px 0", textAlign: "center", color: "#6E5A44" }}>
                     <CalendarCheck2 size={28} style={{ margin: "0 auto 10px" }} />
-                    <div style={{ fontSize: 13 }}>Las reservas de tus clientes aparecerán aquí.</div>
+                    <div style={{ fontSize: 13 }}>{t("clientBookingsHere")}</div>
                   </div>
                 )}
                 {Object.entries(grouped).map(([date, items]) => (
@@ -630,16 +761,19 @@ export default function App() {
                             <div className="brb-mono" style={{ fontSize: 13, color: "#C08552", minWidth: 44 }}>{b.time_label}</div>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 500 }}>{b.name} — {b.service_name}</div>
-                              <div style={{ fontSize: 11, color: "#B99A76" }}>{b.phone}{b.email ? ` · ${b.email}` : ""} · {b.duration} min · {b.price}€</div>
+                              <div style={{ fontSize: 11, color: "#B99A76" }}>{b.phone}{b.email ? ` · ${b.email}` : ""} · {b.duration} {t("min")} · {b.price}€</div>
                             </div>
                           </div>
                           <button
                             className="brb-btn"
                             onClick={() => {
-                              const ok = window.confirm(`¿Eliminar la reserva de ${b.name} (${b.time_label})? Esta acción no se puede deshacer.`);
+                              const msg = lang === "ca"
+                                ? `Vols eliminar la reserva de ${b.name} (${b.time_label})? Aquesta acció no es pot desfer.`
+                                : `¿Eliminar la reserva de ${b.name} (${b.time_label})? Esta acción no se puede deshacer.`;
+                              const ok = window.confirm(msg);
                               if (ok) removeBooking(b.id);
                             }}
-                            aria-label="Eliminar reserva"
+                            aria-label={t("deleteBookingAria")}
                             style={{ background: "transparent", border: "none", color: "#B87A7A", cursor: "pointer", padding: 6 }}
                           >
                             <Trash2 size={15} />
@@ -653,23 +787,23 @@ export default function App() {
             )
           ) : view === "manage" ? (
             <div>
-              <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Mi reserva</div>
+              <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>{t("manageTitle")}</div>
               <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>
-                Introduce el teléfono y el código de cancelación que recibiste al reservar.
+                {t("manageSubtitle")}
               </div>
               <div style={{ marginBottom: 10 }}>
                 <input
                   value={managePhone}
                   onChange={(e) => setManagePhone(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && setManageSearched(true)}
-                  placeholder="Teléfono: 600 000 000"
+                  placeholder={t("phoneFieldPlaceholder")}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #3A2A1C", background: "#120C07", color: "#F1E6D8", fontSize: 14, marginBottom: 8 }}
                 />
                 <input
                   value={manageCode}
                   onChange={(e) => setManageCode(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && setManageSearched(true)}
-                  placeholder="Código de cancelación (ej. X7K2P9)"
+                  placeholder={t("codePlaceholder")}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #3A2A1C", background: "#120C07", color: "#F1E6D8", fontSize: 14, textTransform: "uppercase" }}
                 />
               </div>
@@ -678,14 +812,14 @@ export default function App() {
                 onClick={() => setManageSearched(true)}
                 style={{ width: "100%", padding: "10px 16px", borderRadius: 8, border: "none", background: "#C08552", color: "#1A110B", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 18 }}
               >
-                <Search size={14} /> Buscar
+                <Search size={14} /> {t("search")}
               </button>
 
               {manageSearched && (
                 myBookings.length === 0 ? (
                   <div style={{ padding: "30px 0", textAlign: "center", color: "#6E5A44" }}>
                     <CalendarX2 size={26} style={{ margin: "0 auto 10px" }} />
-                    <div style={{ fontSize: 13 }}>No hemos encontrado ninguna cita futura con esos datos. Revisa el teléfono y el código.</div>
+                    <div style={{ fontSize: 13 }}>{t("noFutureBooking")}</div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -705,7 +839,7 @@ export default function App() {
                             onClick={() => (editingBooking?.id === b.id ? setEditingBooking(null) : startEditingBooking(b))}
                             style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #4A3626", background: "transparent", color: "#D8B98C", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
                           >
-                            {editingBooking?.id === b.id ? "Cerrar" : "Cambiar hora"}
+                            {editingBooking?.id === b.id ? t("close") : t("changeTime")}
                           </button>
                           <button
                             className="brb-btn"
@@ -713,7 +847,7 @@ export default function App() {
                             disabled={cancellingId === b.id}
                             style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #6B3232", background: "transparent", color: "#E29A9A", fontSize: 12, fontWeight: 500, cursor: cancellingId === b.id ? "default" : "pointer", opacity: cancellingId === b.id ? 0.6 : 1 }}
                           >
-                            {cancellingId === b.id ? "Cancelando…" : "Cancelar esta cita"}
+                            {cancellingId === b.id ? t("cancelling") : t("cancelThisAppt")}
                           </button>
                         </div>
 
@@ -743,7 +877,7 @@ export default function App() {
                                         flexShrink: 0,
                                       }}
                                     >
-                                      <div style={{ fontSize: 10, textTransform: "uppercase" }}>{DAY_NAMES[d.getDay()]}</div>
+                                      <div style={{ fontSize: 10, textTransform: "uppercase" }}>{DAY_NAMES[lang][d.getDay()]}</div>
                                       <div className="brb-mono" style={{ fontSize: 13, fontWeight: 600 }}>{d.getDate()}</div>
                                     </button>
                                   );
@@ -757,22 +891,22 @@ export default function App() {
 
                             {editDate && (
                               editSlots.length === 0 ? (
-                                <div style={{ fontSize: 12, color: "#6E5A44", padding: "8px 0" }}>No quedan horas libres ese día.</div>
+                                <div style={{ fontSize: 12, color: "#6E5A44", padding: "8px 0" }}>{t("noFreeSlotsShort")}</div>
                               ) : (
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))", gap: 6, marginBottom: 10 }}>
-                                  {editSlots.map((t) => (
+                                  {editSlots.map((t2) => (
                                     <button
-                                      key={t}
+                                      key={t2}
                                       className="brb-btn brb-mono"
-                                      onClick={() => setEditTime(t)}
+                                      onClick={() => setEditTime(t2)}
                                       style={{
                                         padding: "6px 4px", borderRadius: 8, fontSize: 12, cursor: "pointer",
-                                        background: editTime === t ? "#C08552" : "#1A110B",
-                                        border: `1px solid ${editTime === t ? "#C08552" : "#3A2A1C"}`,
-                                        color: editTime === t ? "#1A110B" : "#F1E6D8",
+                                        background: editTime === t2 ? "#C08552" : "#1A110B",
+                                        border: `1px solid ${editTime === t2 ? "#C08552" : "#3A2A1C"}`,
+                                        color: editTime === t2 ? "#1A110B" : "#F1E6D8",
                                       }}
                                     >
-                                      {minutesToLabel(t)}
+                                      {minutesToLabel(t2)}
                                     </button>
                                   ))}
                                 </div>
@@ -792,7 +926,7 @@ export default function App() {
                                 color: editTime === null ? "#6E5A44" : "#1A110B",
                               }}
                             >
-                              {editSaving ? "Guardando…" : "Guardar nueva hora"}
+                              {editSaving ? t("saving") : t("saveNewTime")}
                             </button>
                           </div>
                         )}
@@ -814,9 +948,9 @@ export default function App() {
 
               {step === 1 && (
                 <div>
-                  <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Elige un servicio</div>
+                  <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>{t("chooseService")}</div>
                   <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>
-                    Martes a viernes 9:00–13:00 y 15:00–20:00 · Sábado 8:00–14:00
+                    {t("scheduleText")}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {SERVICES.map((s) => (
@@ -826,9 +960,9 @@ export default function App() {
                         onClick={() => pickService(s)}
                         style={{ textAlign: "left", background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 12, padding: "14px 16px", cursor: "pointer", color: "#F1E6D8" }}
                       >
-                        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{s.name}</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{s.name[lang]}</div>
                         <div className="brb-mono" style={{ fontSize: 12, color: "#B99A76", display: "flex", justifyContent: "space-between" }}>
-                          <span>{s.duration} min</span>
+                          <span>{s.duration} {t("min")}</span>
                           <span style={{ color: "#C08552" }}>{s.price}€</span>
                         </div>
                       </button>
@@ -840,10 +974,10 @@ export default function App() {
               {step === 2 && service && (
                 <div>
                   <button className="brb-btn" onClick={() => setStep(1)} style={{ background: "none", border: "none", color: "#B99A76", fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", marginBottom: 14, padding: 0 }}>
-                    <ChevronLeft size={14} /> Cambiar servicio
+                    <ChevronLeft size={14} /> {t("changeService")}
                   </button>
-                  <div className="brb-serif" style={{ fontSize: 20, marginBottom: 2 }}>{service.name}</div>
-                  <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>{service.duration} min · {service.price}€</div>
+                  <div className="brb-serif" style={{ fontSize: 20, marginBottom: 2 }}>{service.name[lang]}</div>
+                  <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18 }}>{service.duration} {t("min")} · {service.price}€</div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                     <button className="brb-btn" onClick={() => setDayOffset(Math.max(0, dayOffset - 6))} disabled={dayOffset === 0}
@@ -869,7 +1003,7 @@ export default function App() {
                               flexShrink: 0,
                             }}
                           >
-                            <div style={{ fontSize: 11, textTransform: "uppercase" }}>{DAY_NAMES[d.getDay()]}</div>
+                            <div style={{ fontSize: 11, textTransform: "uppercase" }}>{DAY_NAMES[lang][d.getDay()]}</div>
                             <div className="brb-mono" style={{ fontSize: 15, fontWeight: 600 }}>{d.getDate()}</div>
                           </button>
                         );
@@ -883,24 +1017,24 @@ export default function App() {
 
                   {selectedDate && (
                     <div>
-                      <div style={{ fontSize: 12, color: "#B99A76", marginBottom: 10, textTransform: "capitalize" }}>{formatDateLong(selectedDate)}</div>
+                      <div style={{ fontSize: 12, color: "#B99A76", marginBottom: 10, textTransform: "capitalize" }}>{formatDateLong(selectedDate, lang)}</div>
                       {slots.length === 0 ? (
-                        <div style={{ fontSize: 13, color: "#6E5A44", padding: "16px 0" }}>No quedan horas libres este día. Prueba otro día.</div>
+                        <div style={{ fontSize: 13, color: "#6E5A44", padding: "16px 0" }}>{t("noFreeSlotsLong")}</div>
                       ) : (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(68px, 1fr))", gap: 8 }}>
-                          {slots.map((t) => (
+                          {slots.map((t2) => (
                             <button
-                              key={t}
+                              key={t2}
                               className="brb-btn brb-mono"
-                              onClick={() => setSelectedTime(t)}
+                              onClick={() => setSelectedTime(t2)}
                               style={{
                                 padding: "8px 4px", borderRadius: 8, fontSize: 13, cursor: "pointer",
-                                background: selectedTime === t ? "#C08552" : "#120C07",
-                                border: `1px solid ${selectedTime === t ? "#C08552" : "#3A2A1C"}`,
-                                color: selectedTime === t ? "#1A110B" : "#F1E6D8",
+                                background: selectedTime === t2 ? "#C08552" : "#120C07",
+                                border: `1px solid ${selectedTime === t2 ? "#C08552" : "#3A2A1C"}`,
+                                color: selectedTime === t2 ? "#1A110B" : "#F1E6D8",
                               }}
                             >
-                              {minutesToLabel(t)}
+                              {minutesToLabel(t2)}
                             </button>
                           ))}
                         </div>
@@ -919,7 +1053,7 @@ export default function App() {
                       color: selectedTime === null ? "#6E5A44" : "#1A110B",
                     }}
                   >
-                    Continuar
+                    {t("continue")}
                   </button>
                 </div>
               )}
@@ -927,41 +1061,41 @@ export default function App() {
               {step === 3 && service && selectedDate && (
                 <div>
                   <button className="brb-btn" onClick={() => setStep(2)} style={{ background: "none", border: "none", color: "#B99A76", fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", marginBottom: 14, padding: 0 }}>
-                    <ChevronLeft size={14} /> Cambiar hora
+                    <ChevronLeft size={14} /> {t("changeTime")}
                   </button>
-                  <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>Tus datos</div>
+                  <div className="brb-serif" style={{ fontSize: 20, marginBottom: 4 }}>{t("yourData")}</div>
                   <div style={{ fontSize: 13, color: "#B99A76", marginBottom: 18, textTransform: "capitalize" }}>
-                    {service.name} · {formatDateLong(selectedDate)} · {minutesToLabel(selectedTime)}
+                    {service.name[lang]} · {formatDateLong(selectedDate, lang)} · {minutesToLabel(selectedTime)}
                   </div>
 
                   <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>Nombre</label>
+                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>{t("nameLabel")}</label>
                     <input
                       value={form.name}
                       onChange={(e) => { setForm({ ...form, name: e.target.value }); if (errors.name) setErrors({ ...errors, name: null }); }}
-                      placeholder="Tu nombre"
+                      placeholder={t("namePlaceholder")}
                       style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${errors.name ? "#B87A7A" : "#3A2A1C"}`, background: "#120C07", color: "#F1E6D8", fontSize: 14 }}
                     />
                     {errors.name && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 4 }}>{errors.name}</div>}
                   </div>
 
                   <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>Teléfono</label>
+                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>{t("phoneLabel")}</label>
                     <input
                       value={form.phone}
                       onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (errors.phone) setErrors({ ...errors, phone: null }); }}
-                      placeholder="600 000 000"
+                      placeholder={t("phonePlaceholder")}
                       style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${errors.phone ? "#B87A7A" : "#3A2A1C"}`, background: "#120C07", color: "#F1E6D8", fontSize: 14 }}
                     />
                     {errors.phone && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 4 }}>{errors.phone}</div>}
                   </div>
 
                   <div style={{ marginBottom: 20 }}>
-                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>Email (opcional — recibirás la confirmación y el código de cancelación automáticamente)</label>
+                    <label style={{ fontSize: 12, color: "#B99A76", display: "block", marginBottom: 6 }}>{t("emailOptionalLabel")}</label>
                     <input
                       value={form.email}
                       onChange={(e) => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors({ ...errors, email: null }); }}
-                      placeholder="tunombre@email.com"
+                      placeholder={t("emailPlaceholder2")}
                       type="email"
                       style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${errors.email ? "#B87A7A" : "#3A2A1C"}`, background: "#120C07", color: "#F1E6D8", fontSize: 14 }}
                     />
@@ -976,7 +1110,7 @@ export default function App() {
                       style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: "#C08552" }}
                     />
                     <span style={{ fontSize: 11, color: "#B99A76", lineHeight: 1.4 }}>
-                      Acepto que La Barbería trate mis datos (nombre, teléfono{form.email.trim() ? " y email" : ""}) únicamente para gestionar mi cita, según la normativa de protección de datos.
+                      {t("consentPrefix")}{form.email.trim() ? t("consentSuffixEmail") : ""}{t("consentSuffix")}
                     </span>
                   </label>
                   {errors.consent && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: -14, marginBottom: 14 }}>{errors.consent}</div>}
@@ -993,7 +1127,7 @@ export default function App() {
                     disabled={submitting}
                     style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 14, cursor: submitting ? "default" : "pointer", background: "#C08552", color: "#1A110B", opacity: submitting ? 0.7 : 1 }}
                   >
-                    {submitting ? "Reservando…" : "Confirmar reserva"}
+                    {submitting ? t("bookingLoading") : t("confirmBooking")}
                   </button>
                 </div>
               )}
@@ -1006,25 +1140,25 @@ export default function App() {
                       <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#2A1B12", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Check size={16} color="#C08552" />
                       </div>
-                      <div className="brb-serif" style={{ fontSize: 17, fontWeight: 600 }}>Reserva confirmada</div>
+                      <div className="brb-serif" style={{ fontSize: 17, fontWeight: 600 }}>{t("bookingConfirmed")}</div>
                     </div>
                     <div style={{ borderTop: "1px dashed #B9A98C", paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <Row label="Servicio" value={confirmed.service_name} />
-                      <Row label="Fecha" value={confirmed.date_label} cap />
-                      <Row label="Hora" value={confirmed.time_label} mono />
-                      <Row label="Duración" value={`${confirmed.duration} min`} mono />
-                      <Row label="Precio" value={`${confirmed.price}€`} mono />
-                      <Row label="Nombre" value={confirmed.name} />
-                      <Row label="Teléfono" value={confirmed.phone} mono />
+                      <Row label={t("rowService")} value={confirmed.service_name} />
+                      <Row label={t("rowDate")} value={confirmed.date_label} cap />
+                      <Row label={t("rowTime")} value={confirmed.time_label} mono />
+                      <Row label={t("rowDuration")} value={`${confirmed.duration} ${t("min")}`} mono />
+                      <Row label={t("rowPrice")} value={`${confirmed.price}€`} mono />
+                      <Row label={t("rowName")} value={confirmed.name} />
+                      <Row label={t("rowPhone")} value={confirmed.phone} mono />
                     </div>
                     <div style={{ marginTop: 16, background: "#2A1B12", borderRadius: 10, padding: "12px 14px" }}>
-                      <div style={{ fontSize: 11, color: "#B9A98C" }}>Código de cancelación — guárdalo para modificar o cancelar tu cita</div>
+                      <div style={{ fontSize: 11, color: "#B9A98C" }}>{t("cancelCodeLabel")}</div>
                       <div className="brb-mono" style={{ fontSize: 22, fontWeight: 700, color: "#F1E6D8", letterSpacing: "0.15em", marginTop: 4 }}>{confirmed.cancel_code}</div>
                     </div>
                   </div>
 
                   <div style={{ fontSize: 12, color: "#B99A76", textAlign: "center", margin: "14px 0 14px" }}>
-                    Envía la confirmación para que quede constancia:
+                    {t("sendConfirmationText")}
                   </div>
 
                   <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -1035,7 +1169,7 @@ export default function App() {
                       className="brb-btn"
                       style={{ flex: 1, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", borderRadius: 10, fontWeight: 500, fontSize: 13, background: "#25D366", color: "#1A110B" }}
                     >
-                      <MessageCircle size={15} /> WhatsApp
+                      <MessageCircle size={15} /> {t("whatsapp")}
                     </a>
                     {!confirmed.email && !emailFormOpen && !emailSent && (
                       <button
@@ -1043,7 +1177,7 @@ export default function App() {
                         className="brb-btn"
                         style={{ flex: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", borderRadius: 10, fontWeight: 500, fontSize: 13, border: "1px solid #4A3626", color: "#F1E6D8", background: "transparent" }}
                       >
-                        <Mail size={15} /> Email
+                        <Mail size={15} /> {t("emailBtn")}
                       </button>
                     )}
                   </div>
@@ -1056,21 +1190,21 @@ export default function App() {
                       color: autoEmailStatus === "error" ? "#E8B4B4" : "#A8D9B4",
                       display: "flex", alignItems: "center", gap: 8
                     }}>
-                      {autoEmailStatus === "sending" && <>Enviando confirmación a {confirmed.email}…</>}
-                      {autoEmailStatus === "sent" && <><Check size={15} /> Confirmación enviada a {confirmed.email}</>}
-                      {autoEmailStatus === "error" && <>No se pudo enviar el email automáticamente. Guarda igualmente tu código de cancelación de arriba.</>}
+                      {autoEmailStatus === "sending" && (lang === "ca" ? <>Enviant confirmació a {confirmed.email}…</> : <>Enviando confirmación a {confirmed.email}…</>)}
+                      {autoEmailStatus === "sent" && <><Check size={15} /> {lang === "ca" ? `Confirmació enviada a ${confirmed.email}` : `Confirmación enviada a ${confirmed.email}`}</>}
+                      {autoEmailStatus === "error" && t("emailAutoError")}
                     </div>
                   )}
 
                   {!confirmed.email && emailFormOpen && !emailSent && (
                     <div style={{ background: "#120C07", border: "1px solid #3A2A1C", borderRadius: 10, padding: 14, marginBottom: 10 }}>
-                      <div style={{ fontSize: 12, color: "#B99A76", marginBottom: 8 }}>Te enviamos la confirmación a tu email:</div>
+                      <div style={{ fontSize: 12, color: "#B99A76", marginBottom: 8 }}>{t("emailFormLabel")}</div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <input
                           value={emailInput}
                           onChange={(e) => { setEmailInput(e.target.value); if (emailError) setEmailError(""); }}
                           onKeyDown={(e) => e.key === "Enter" && sendConfirmationEmail()}
-                          placeholder="tunombre@gmail.com"
+                          placeholder={t("emailPlaceholder2")}
                           style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: `1px solid ${emailError ? "#B87A7A" : "#3A2A1C"}`, background: "#1A110B", color: "#F1E6D8", fontSize: 13 }}
                         />
                         <button
@@ -1079,7 +1213,7 @@ export default function App() {
                           className="brb-btn"
                           style={{ padding: "9px 14px", borderRadius: 8, border: "none", background: "#C08552", color: "#1A110B", fontWeight: 600, fontSize: 13, cursor: emailSending ? "default" : "pointer", opacity: emailSending ? 0.7 : 1 }}
                         >
-                          {emailSending ? "..." : "Enviar"}
+                          {emailSending ? "..." : t("send")}
                         </button>
                       </div>
                       {emailError && <div style={{ color: "#E29A9A", fontSize: 12, marginTop: 6 }}>{emailError}</div>}
@@ -1088,7 +1222,7 @@ export default function App() {
 
                   {!confirmed.email && emailSent && (
                     <div style={{ background: "#16281C", border: "1px solid #2D4A34", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 13, color: "#A8D9B4", display: "flex", alignItems: "center", gap: 8 }}>
-                      <Check size={15} /> Email enviado a {emailInput.trim()}
+                      <Check size={15} /> {lang === "ca" ? `Email enviat a ${emailInput.trim()}` : `Email enviado a ${emailInput.trim()}`}
                     </div>
                   )}
 
@@ -1097,7 +1231,7 @@ export default function App() {
                     onClick={() => downloadICS(confirmed)}
                     style={{ width: "100%", padding: "11px", borderRadius: 10, border: "1px solid #4A3626", fontWeight: 500, fontSize: 13, cursor: "pointer", background: "transparent", color: "#D8B98C", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10 }}
                   >
-                    📅 Añadir a mi calendario
+                    📅 {t("addToCalendar")}
                   </button>
 
                   <button
@@ -1105,7 +1239,7 @@ export default function App() {
                     onClick={resetFlow}
                     style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid #4A3626", fontWeight: 500, fontSize: 14, cursor: "pointer", background: "transparent", color: "#F1E6D8" }}
                   >
-                    Hacer otra reserva
+                    {t("newBooking")}
                   </button>
                 </div>
               )}
@@ -1130,12 +1264,12 @@ export default function App() {
               onClick={() => setShowPolicy(!showPolicy)}
               style={{ background: "none", border: "none", color: "#B99A76", fontSize: 12, textDecoration: "underline", cursor: "pointer", padding: 0 }}
             >
-              Política de cancelación
+              {t("cancellationPolicyLink")}
             </button>
           </div>
           {showPolicy && (
             <div style={{ fontSize: 12, color: "#8A7358", lineHeight: 1.5, textAlign: "center", maxWidth: 360 }}>
-              {CANCELLATION_POLICY}
+              {CANCELLATION_POLICY[lang]}
             </div>
           )}
         </div>
