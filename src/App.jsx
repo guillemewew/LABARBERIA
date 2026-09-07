@@ -78,13 +78,6 @@ function generateCancelCode() {
   return code;
 }
 
-function generateCancelCode() {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sin O/0, I/1/L para evitar confusiones
-  let code = "";
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
-}
-
 function buildConfirmationMessage(b) {
   return `Hola! Confirmo mi cita en La Barbería:\n· Servicio: ${b.service_name}\n· Fecha: ${b.date_label}\n· Hora: ${b.time_label}\n· Nombre: ${b.name}\n· Teléfono: ${b.phone}\n· Código de cancelación: ${b.cancel_code}`;
 }
